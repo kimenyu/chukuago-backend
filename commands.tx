@@ -1,0 +1,26 @@
+# View all logs
+docker compose logs -f
+
+# View only app logs
+docker compose logs -f app
+
+# Rebuild after code changes
+docker compose up -d --build app
+
+# Restart a service
+docker compose restart app
+
+# Check status of all services
+docker compose ps
+
+# Execute commands inside the app container
+docker compose exec app sh
+
+# Execute commands in the database
+docker compose exec db psql -U chukuago_user -d chukuago
+
+# Stop everything
+docker compose down
+
+# Stop and remove volumes (fresh database)
+docker compose down -v
