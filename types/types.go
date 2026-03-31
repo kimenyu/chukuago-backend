@@ -171,7 +171,7 @@ type User struct {
 	ID     uuid.UUID  `json:"id"`
 	Phone  string     `json:"phone"`
 	Email  string     `json:"email,omitempty"`
-	Name   string     `json:"fullName"`
+	Name   string     `json:"name"`
 	Role   UserRole   `json:"role"`
 	Status UserStatus `json:"status"`
 

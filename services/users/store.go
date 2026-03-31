@@ -20,8 +20,8 @@ func NewStore(db *sql.DB) *Store {
 // Create User
 func (s *Store) CreateUser(ctx context.Context, user *types.User) error {
 	query := `
-		INSERT INTO users (id, name, email, password, role, phone, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO users (id, name, email, password, role, status, phone, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
 	`
 
 	_, err := s.db.ExecContext(
@@ -32,6 +32,7 @@ func (s *Store) CreateUser(ctx context.Context, user *types.User) error {
 		user.Email,
 		user.Password,
 		user.Role,
+		user.Status,
 		user.Phone,
 		user.CreatedAt,
 		user.UpdatedAt,

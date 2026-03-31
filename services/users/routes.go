@@ -111,6 +111,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		Name:      payload.Name,
 		Email:     payload.Email,
 		Role:      types.UserRole(payload.Role),
+		Status:    types.UserStatusActive,
 		Phone:     payload.Phone,
 		Password:  hashedPassword,
 		CreatedAt: time.Now(),

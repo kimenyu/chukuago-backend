@@ -54,10 +54,10 @@ CREATE TABLE IF NOT EXISTS users (
                                      id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     phone          TEXT UNIQUE NOT NULL,
     email          TEXT UNIQUE,
-    full_name      TEXT NOT NULL,
+    name      TEXT NOT NULL,
     role           TEXT NOT NULL CHECK (role IN ('client','runner','admin')),
     status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','suspended','deleted')),
-    password_hash  TEXT, -- optional if you do OTP-only; keep for flexibility
+    password  TEXT, -- optional if you do OTP-only; keep for flexibility
     last_lat       DOUBLE PRECISION,
     last_lng       DOUBLE PRECISION,
     last_geo       GEOGRAPHY(Point, 4326),
