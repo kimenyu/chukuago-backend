@@ -27,7 +27,7 @@ func main() {
 		log.Fatal("Failed to connect to DB:", err)
 	}
 
-	server := api.NewAPIServer(fmt.Sprintf("%s", addr), dbConn)
+	server := api.NewAPIServer(fmt.Sprintf(":%s", addr), dbConn)
 	if err := server.Run(); err != nil {
 		log.Fatal("Server failed:", err)
 	}
