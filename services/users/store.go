@@ -72,6 +72,71 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*types.User, 
 	return user, nil
 }
 
+func (s *Store) GetOrCreateWallet(ctx context.Context, userID uuid.UUID) (*types.Wallet, error) {
+	_, err := s.db.ExecContext(ctx, `
+        INSERT INTO wallets (user_id, currency)
+        VALUES ($1, 'KES')
+        ON CONFLICT (user_id) DO NOTHING
+    `, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var w types.Wallet
+	err = s.db.QueryRowContext(ctx, `
+        SELECT id, user_id, currency, balance, created_at, updated_at
+        FROM wallets WHERE user_id = $1
+    `, userID).Scan(&w.ID, &w.UserID, &w.Currency, &w.Balance, &w.CreatedAt, &w.UpdatedAt)
+	return &w, err
+}
+
+func (s *Store) GetOrCreateClientProfile(ctx context.Context, userID uuid.UUID) (*types.ClientProfile, error) {
+	_, err := s.db.ExecContext(ctx, `
+        INSERT INTO client_profiles (user_id, preferred_currency)
+        VALUES ($1, 'KES')
+        ON CONFLICT (user_id) DO NOTHING
+    `, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var p types.ClientProfile
+	err = s.db.QueryRowContext(ctx, `
+        SELECT user_id, bio, preferred_currency, default_region_id,
+               total_errands, active_errands, dispute_count, created_at, updated_at
+        FROM client_profiles WHERE user_id = $1
+    `, userID).Scan(
+		&p.UserID, &p.Bio, &p.PreferredCurrency, &p.DefaultRegionID,
+		&p.TotalErrands, &p.ActiveErrands, &p.DisputeCount,
+		&p.CreatedAt, &p.UpdatedAt,
+	)
+	return &p, err
+}
+
+func (s *Store) GetOrCreateRunnerProfile(ctx context.Context, userID uuid.UUID) (*types.RunnerProfile, error) {
+	_, err := s.db.ExecContext(ctx, `
+        INSERT INTO runner_profiles (user_id, kyc_status, is_available, rating_avg, rating_count, completed_count, cancelled_count)
+        VALUES ($1, 'unsubmitted', false, 0, 0, 0, 0)
+        ON CONFLICT (user_id) DO NOTHING
+    `, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var p types.RunnerProfile
+	err = s.db.QueryRowContext(ctx, `
+        SELECT user_id, bio, kyc_status, vehicle_type, vehicle_plate,
+               is_available, rating_avg, rating_count, completed_count, cancelled_count,
+               created_at, updated_at
+        FROM runner_profiles WHERE user_id = $1
+    `, userID).Scan(
+		&p.UserID, &p.Bio, &p.KYCStatus, &p.VehicleType, &p.VehiclePlate,
+		&p.IsAvailable, &p.RatingAvg, &p.RatingCount, &p.CompletedCount, &p.CancelledCount,
+		&p.CreatedAt, &p.UpdatedAt,
+	)
+	return &p, err
+}
+
 // Get User by ID
 func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	query := `

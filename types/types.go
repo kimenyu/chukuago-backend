@@ -189,6 +189,10 @@ type UserStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
+
+	GetOrCreateClientProfile(ctx context.Context, userID uuid.UUID) (*ClientProfile, error)
+	GetOrCreateRunnerProfile(ctx context.Context, userID uuid.UUID) (*RunnerProfile, error)
+	GetOrCreateWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
 }
 
 type RegisterUserPayload struct {
@@ -210,6 +214,23 @@ type UserSession struct {
 	ExpiresAt    time.Time  `json:"expiresAt"`
 	RevokedAt    *time.Time `json:"revokedAt,omitempty"`
 	CreatedAt    time.Time  `json:"createdAt"`
+}
+
+type ClientProfile struct {
+	UserID uuid.UUID `json:"userId"`
+	Bio    *string   `json:"bio,omitempty"`
+
+	// Preferences
+	PreferredCurrency string     `json:"preferredCurrency"`
+	DefaultRegionID   *uuid.UUID `json:"defaultRegionId,omitempty"`
+
+	// Stats
+	TotalErrands  int `json:"totalErrands"`
+	ActiveErrands int `json:"activeErrands"`
+	DisputeCount  int `json:"disputeCount"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type RunnerProfile struct {

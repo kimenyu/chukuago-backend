@@ -25,6 +25,7 @@ func NewHandler(store types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/login", h.handleLogin)
 	router.Post("/register", h.handleRegister)
+	router.Post("/register/runner", h.handleRegisterRunners)
 
 	router.With(auth.WithJWTAuth(h.store)).Get("/users/{userID}", h.handleGetUser)
 }
@@ -87,15 +88,12 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user exists
 	_, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err == nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user already exists"))
 		return
 	}
-
-	// Only continue if it's actually "not found"
-	if err != nil && err.Error() != "user not found" {
+	if err.Error() != "user not found" {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -110,7 +108,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		ID:        uuid.New(),
 		Name:      payload.Name,
 		Email:     payload.Email,
-		Role:      types.UserRole(payload.Role),
+		Role:      types.UserRoleClient,
 		Status:    types.UserStatusActive,
 		Phone:     payload.Phone,
 		Password:  hashedPassword,
@@ -123,8 +121,81 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-create client profile
+	if _, err := h.store.GetOrCreateClientProfile(ctx, user.ID); err != nil {
+		// Non-fatal: log it but don't fail the registration
+		fmt.Printf("warn: failed to create client profile for %s: %v\n", user.ID, err)
+	}
+	if _, err := h.store.GetOrCreateWallet(ctx, user.ID); err != nil {
+		fmt.Printf("warn: failed to create wallet for %s: %v\n", user.ID, err)
+	}
+
 	utils.WriteJSON(w, http.StatusCreated, map[string]string{
 		"message": "user created successfully",
+	})
+}
+
+// REGISTER RUNNER
+func (h *Handler) handleRegisterRunners(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var payload types.RegisterUserPayload
+
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
+		return
+	}
+
+	_, err := h.store.GetUserByEmail(ctx, payload.Email)
+	if err == nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user already exists"))
+		return
+	}
+	if err.Error() != "user not found" {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(payload.Password)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	user := &types.User{
+		ID:        uuid.New(),
+		Name:      payload.Name,
+		Email:     payload.Email,
+		Role:      types.UserRoleRunner,
+		Status:    types.UserStatusPending, // runners start pending (KYC)
+		Phone:     payload.Phone,
+		Password:  hashedPassword,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := h.store.CreateUser(ctx, user); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Auto-create runner profile
+	if _, err := h.store.GetOrCreateRunnerProfile(ctx, user.ID); err != nil {
+		fmt.Printf("warn: failed to create runner profile for %s: %v\n", user.ID, err)
+	}
+
+	if _, err := h.store.GetOrCreateWallet(ctx, user.ID); err != nil {
+		fmt.Printf("warn: failed to create wallet for %s: %v\n", user.ID, err)
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, map[string]string{
+		"message": "runner registered successfully, pending KYC approval",
 	})
 }
 
