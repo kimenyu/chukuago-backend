@@ -156,12 +156,12 @@ func (s *APIServer) Run() error {
 		userStore := user.NewStore(s.db)
 		clientStore := client.NewStore(s.db)
 		userHandler := user.NewHandler(userStore)
-		clientHandler := client.NewHandler(clientStore)
+		clientHandler := client.NewHandler(clientStore, userStore)
 
 		// Add user_id attr to logs when authenticated
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, rr *http.Request) {
-				if uid := types.UserIDFromContext(rr.Context()); uid != uuid.Nil {
+				if uid, _ := types.UserIDFromContext(rr.Context()); uid != uuid.Nil {
 					next = logging.AddAttrs(next, slog.String("user_id", uid.String()))
 				}
 				next.ServeHTTP(w, rr)
