@@ -195,6 +195,9 @@ type UserStore interface {
 	GetOrCreateWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
 }
 
+type ProfileStore interface {
+	GetClientProfile(ctx context.Context, userId uuid.UUID) (*ClientProfile, error)
+}
 type RegisterUserPayload struct {
 	Name     string `json:"name" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`

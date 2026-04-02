@@ -26,6 +26,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v3"
 	"github.com/kimenyu/chukuagobackend/internal/logging"
+	"github.com/kimenyu/chukuagobackend/services/profiles/client"
 	user "github.com/kimenyu/chukuagobackend/services/users"
 	"github.com/kimenyu/chukuagobackend/types"
 
@@ -153,7 +154,9 @@ func (s *APIServer) Run() error {
 
 	router.Route("/api/v1", func(r chi.Router) {
 		userStore := user.NewStore(s.db)
+		clientStore := client.NewStore(s.db)
 		userHandler := user.NewHandler(userStore)
+		clientHandler := client.NewHandler(clientStore)
 
 		// Add user_id attr to logs when authenticated
 		r.Use(func(next http.Handler) http.Handler {
@@ -166,6 +169,7 @@ func (s *APIServer) Run() error {
 		})
 
 		userHandler.RegisterRoutes(r)
+		clientHandler.RegisterRoutes(r)
 	})
 
 	log.Printf("Server listening on %s", s.addr)
