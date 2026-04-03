@@ -195,8 +195,13 @@ type UserStore interface {
 	GetOrCreateWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
 }
 
+type ClientProfilePayload struct {
+	Bio            string `json:"bio"`
+	ProfilePicture string `json:"profilePicture"`
+}
 type ProfileStore interface {
 	GetClientProfile(ctx context.Context, userId uuid.UUID) (*ClientProfile, error)
+	UpdateClientProfile(ctx context.Context, profile *ClientProfile) error
 }
 type RegisterUserPayload struct {
 	Name     string `json:"name" validate:"required"`
@@ -221,8 +226,9 @@ type UserSession struct {
 
 type ClientProfile struct {
 	UserID uuid.UUID `json:"userId"`
-	Bio    *string   `json:"bio,omitempty"`
+	Bio    string    `json:"bio,omitempty"`
 
+	ProfilePic string `json:"profilePic,omitempty"`
 	// Preferences
 	PreferredCurrency string     `json:"preferredCurrency"`
 	DefaultRegionID   *uuid.UUID `json:"defaultRegionId,omitempty"`

@@ -51,7 +51,7 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 }
 
 func ClientKey(r *http.Request) string {
-	if uid := types.UserIDFromContext(r.Context()); uid != uuid.Nil {
+	if uid, _ := types.UserIDFromContext(r.Context()); uid != uuid.Nil {
 		return "uid:" + uid.String()
 	}
 	return "ip:" + RealIP(r)

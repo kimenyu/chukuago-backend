@@ -91,6 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions (user_id);
 CREATE TABLE IF NOT EXISTS client_profiles (
                                                user_id            UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
     bio                TEXT,
+    profile_picture VARCHAR(256), 
     preferred_currency VARCHAR(10) NOT NULL DEFAULT 'KES',
     -- Nullable FK; intentional — not every client sets a default region.
     default_region_id  UUID REFERENCES service_regions (id),
