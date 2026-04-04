@@ -28,6 +28,7 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/register/runner", h.handleRegisterRunners)
 
 	router.With(auth.WithJWTAuth(h.store)).Get("/users/{userID}", h.handleGetUser)
+	router.With(auth.WithJWTAuth(h.store)).Post("/users/location", h.UpdateLocation)
 }
 
 // LOGIN
@@ -218,4 +219,28 @@ func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, user)
+}
+
+func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
+	userID := auth.GetUserIDFromContext(r.Context())
+
+	var payload struct {
+		Lat float64 `json:"lat" validate:"required"`
+		Lng float64 `json:"lng" validate:"required"`
+	}
+
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload"))
+		return
+	}
+
+	err := h.store.UpdateUserLocation(r.Context(), userID, payload.Lat, payload.Lng)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to update location"))
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": "location updated",
+	})
 }

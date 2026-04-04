@@ -193,6 +193,8 @@ type UserStore interface {
 	GetOrCreateClientProfile(ctx context.Context, userID uuid.UUID) (*ClientProfile, error)
 	GetOrCreateRunnerProfile(ctx context.Context, userID uuid.UUID) (*RunnerProfile, error)
 	GetOrCreateWallet(ctx context.Context, userID uuid.UUID) (*Wallet, error)
+
+	UpdateUserLocation(ctx context.Context, userID uuid.UUID, lat, lng float64) error
 }
 
 type ClientProfilePayload struct {

@@ -167,3 +167,19 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, err
 
 	return user, nil
 }
+
+func (s *Store) UpdateUserLocation(ctx context.Context, userID uuid.UUID, lat, lng float64) error {
+	query := `
+	UPDATE users
+	SET 
+		last_lat = $1,
+		last_lng = $2,
+		last_geo = ST_SetSRID(ST_MakePoint($2, $1), 4326),
+		last_seen_at = NOW(),
+		updated_at = NOW()
+	WHERE id = $3;
+	`
+
+	_, err := s.db.ExecContext(ctx, query, lat, lng, userID)
+	return err
+}

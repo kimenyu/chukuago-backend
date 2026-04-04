@@ -27,6 +27,7 @@ func NewHandler(profile types.ProfileStore, user types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router chi.Router) {
 	// pass the userStore to JWT middleware
 	router.With(auth.WithJWTAuth(h.userStore)).Get("/profile/me", h.handleGetClientProfile)
+	router.With(auth.WithJWTAuth(h.userStore)).Get("/update/profile/me", h.handleUpdateClientProfile)
 }
 
 // get client profile
