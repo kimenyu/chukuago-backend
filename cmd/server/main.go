@@ -131,6 +131,11 @@ func main() {
 	authMiddleware := middleware.Authenticate(tokenSvc, logger)
 	requireRole := middleware.RequireRole
 
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public — rate limited by IP
 		r.Group(func(r chi.Router) {
