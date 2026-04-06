@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS notifications_2026;
+DROP TABLE IF EXISTS notifications_2025;
+DROP TABLE IF EXISTS notifications;
+DROP TYPE  IF EXISTS notification_status;
+DROP TABLE IF EXISTS dispute_evidence;
+DROP TABLE IF EXISTS disputes;
+DROP TYPE  IF EXISTS dispute_resolution;
+DROP TYPE  IF EXISTS dispute_status;
+DROP TABLE IF EXISTS reviews;

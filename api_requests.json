@@ -1,0 +1,1169 @@
+{
+  "info": {
+    "name": "ChukuaGo API",
+    "description": "Complete test collection for the ChukuaGo Go backend. Run requests in order — auth first, then use the returned tokens for protected routes.",
+    "base_url": "http://localhost:8080/api/v1",
+    "notes": [
+      "1. Start with AUTH section — run send-otp, then verify-otp to get tokens",
+      "2. Copy accessToken from verify-otp response into the 'token' field of any protected request",
+      "3. For runner routes, first register a runner account and complete KYC",
+      "4. For admin routes, use an admin account token",
+      "5. Replace all placeholder UUIDs (xxxxxxxx-...) with real IDs from previous responses"
+    ]
+  },
+
+  "auth": {
+    "send_otp_client": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/send-otp",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "phone": "+254712345678",
+        "role": "client"
+      },
+      "expected_status": 200,
+      "note": "Sends a 6-digit OTP via Africa's Talking SMS. Check your phone or AT sandbox logs."
+    },
+
+    "send_otp_runner": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/send-otp",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "phone": "+254798765432",
+        "role": "runner"
+      },
+      "expected_status": 200
+    },
+
+    "verify_otp_client": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/verify-otp?role=client",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "phone": "+254712345678",
+        "otp": "482910"
+      },
+      "expected_status": 200,
+      "note": "Replace 482910 with the real OTP from your SMS. Response contains accessToken and refreshToken.",
+      "expected_response_shape": {
+        "success": true,
+        "data": {
+          "accessToken": "<JWT — copy this for all protected requests>",
+          "refreshToken": "<JWT — use for /auth/refresh>"
+        }
+      }
+    },
+
+    "verify_otp_runner": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/verify-otp?role=runner",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "phone": "+254798765432",
+        "otp": "123456"
+      },
+      "expected_status": 200
+    },
+
+    "refresh_token": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/refresh",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "refreshToken": "<paste refreshToken from verify-otp response>"
+      },
+      "expected_status": 200,
+      "note": "Returns a new accessToken + refreshToken pair. Old refresh token is invalidated."
+    },
+
+    "logout": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/logout",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": {
+        "refreshToken": "<paste refreshToken>"
+      },
+      "expected_status": 204
+    }
+  },
+
+  "profile": {
+    "get_profile": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/profile",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "update_profile": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/profile",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": {
+        "name": "Carol Mwangi",
+        "email": "carol@example.com",
+        "bio": "Busy professional in Westlands. Love having errands handled.",
+        "profilePicture": "https://your-cloudinary-url.com/photo.jpg"
+      },
+      "expected_status": 200,
+      "note": "All fields are optional. Send only what you want to change."
+    },
+
+    "update_location": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/profile/location",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": {
+        "lat": -1.2741,
+        "lng": 36.8119
+      },
+      "expected_status": 204,
+      "note": "Coordinates above are Westlands, Nairobi. No response body on success."
+    }
+  },
+
+  "runner_setup": {
+    "submit_kyc": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/kyc",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "nationalIdFrontUrl": "https://your-cloudinary.com/uploads/kyc/id_front.jpg",
+        "nationalIdBackUrl": "https://your-cloudinary.com/uploads/kyc/id_back.jpg",
+        "selfieUrl": "https://your-cloudinary.com/uploads/kyc/selfie.jpg"
+      },
+      "expected_status": 202,
+      "note": "Upload images to Cloudinary first to get the URLs, then submit them here. KYC review takes 24-48 hrs."
+    },
+
+    "get_kyc_status": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/runner/kyc/status",
+      "headers": {
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "expected_response_shape": {
+        "success": true,
+        "data": {
+          "status": "pending"
+        }
+      }
+    },
+
+    "set_availability_online": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/runner/availability",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "isAvailable": true
+      },
+      "expected_status": 204,
+      "note": "Toggle to false to go offline."
+    },
+
+    "set_availability_offline": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/runner/availability",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "isAvailable": false
+      },
+      "expected_status": 204
+    },
+
+    "add_service_area_region": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/service-areas",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "regionId": "<uuid of Nairobi region from service_regions table>",
+        "label": "Nairobi CBD & surroundings"
+      },
+      "expected_status": 201,
+      "note": "Either regionId or label is required. Use regionId for pre-defined Kenyan counties."
+    },
+
+    "add_service_area_custom": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/service-areas",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "label": "Westlands, Parklands, Highridge"
+      },
+      "expected_status": 201
+    },
+
+    "remove_service_area": {
+      "method": "DELETE",
+      "url": "http://localhost:8080/api/v1/runner/service-areas/<service_area_id>",
+      "headers": {
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": null,
+      "expected_status": 204,
+      "note": "Replace <service_area_id> with the UUID returned from add_service_area."
+    }
+  },
+
+  "errands": {
+    "create_errand_groceries": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Pick up groceries from Carrefour Karen",
+        "description": "Need the following items: 2kg unga, 1L milk (Brookside), 500g butter, bread. Budget is flexible if items are slightly more.",
+        "category": "groceries",
+        "currency": "KES",
+        "allowBids": true,
+        "budgetMin": 300,
+        "budgetMax": 600,
+        "stops": [
+          {
+            "stopType": "pickup",
+            "addressLabel": "Carrefour Karen",
+            "addressText": "Carrefour Supermarket, Karen Shopping Centre, Karen Road, Nairobi",
+            "lat": -1.3192,
+            "lng": 36.7126,
+            "instructions": "Main entrance. Items are for purchase, not pick up from someone."
+          },
+          {
+            "stopType": "dropoff",
+            "addressLabel": "Home",
+            "addressText": "Karen Plains Estate, House 14B, Karen, Nairobi",
+            "lat": -1.3248,
+            "lng": 36.7089,
+            "contactName": "Carol",
+            "contactPhone": "+254712345678",
+            "instructions": "Call when you arrive. Gate code is 1234."
+          }
+        ]
+      },
+      "expected_status": 201,
+      "note": "Returns the created errand with id. Save this id for subsequent requests."
+    },
+
+    "create_errand_fixed_price": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Pay KPLC bill at Equity Bank Westlands",
+        "description": "Pay electricity bill for account 0834992001. Amount is KES 4,500. Will M-Pesa the money to runner before they go.",
+        "category": "bill_payment",
+        "currency": "KES",
+        "allowBids": false,
+        "instantAccept": true,
+        "fixedPrice": 250,
+        "stops": [
+          {
+            "stopType": "pickup",
+            "addressLabel": "My office",
+            "addressText": "Delta Towers, Westlands, Nairobi",
+            "lat": -1.2676,
+            "lng": 36.8082,
+            "contactName": "Carol",
+            "contactPhone": "+254712345678",
+            "instructions": "Come to reception on ground floor, I'll hand you the bill slip."
+          },
+          {
+            "stopType": "dropoff",
+            "addressLabel": "Equity Bank Westlands",
+            "addressText": "Equity Bank, Ring Road Westlands, Nairobi",
+            "lat": -1.2671,
+            "lng": 36.8063,
+            "instructions": "Pay at the teller counter. Get a receipt and bring it back to my office."
+          }
+        ]
+      },
+      "expected_status": 201
+    },
+
+    "create_errand_scheduled": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Queue at Huduma Centre for ID renewal",
+        "description": "Need someone to hold my place in the National ID renewal queue at Huduma Centre. I'll join at 11 AM, just need the spot held from 8 AM.",
+        "category": "queue_standing",
+        "currency": "KES",
+        "allowBids": true,
+        "budgetMin": 500,
+        "budgetMax": 1000,
+        "scheduledAt": "2025-08-15T08:00:00+03:00",
+        "stops": [
+          {
+            "stopType": "pickup",
+            "addressLabel": "Huduma Centre Nairobi",
+            "addressText": "Huduma Centre, Teleposta Towers, Kenyatta Avenue, Nairobi CBD",
+            "lat": -1.2839,
+            "lng": 36.8212,
+            "instructions": "Join the ID renewal queue. Stand until I arrive at 11 AM. Call me when you arrive."
+          }
+        ]
+      },
+      "expected_status": 201
+    },
+
+    "create_errand_multi_stop": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Pick up parcel from DHL then deliver to client in Kilimani",
+        "description": "Collect a small parcel from DHL Express on Mombasa Road, then deliver it to my client in Kilimani. Parcel is pre-paid.",
+        "category": "delivery",
+        "currency": "KES",
+        "allowBids": true,
+        "budgetMin": 400,
+        "budgetMax": 800,
+        "stops": [
+          {
+            "stopType": "pickup",
+            "addressLabel": "DHL Express",
+            "addressText": "DHL Express Kenya, Tulip House, Mombasa Road, Nairobi",
+            "lat": -1.3088,
+            "lng": 36.8293,
+            "contactName": "Front desk",
+            "instructions": "Collect parcel for Carol Mwangi. Show your ID. Waybill: 1234567890."
+          },
+          {
+            "stopType": "dropoff",
+            "addressLabel": "Client office",
+            "addressText": "Kilimani Business Centre, Argwings Kodhek Road, Kilimani, Nairobi",
+            "lat": -1.2918,
+            "lng": 36.7812,
+            "contactName": "James Otieno",
+            "contactPhone": "+254722111222",
+            "instructions": "Call James on arrival. He'll come to reception."
+          }
+        ]
+      },
+      "expected_status": 201
+    },
+
+    "list_errands": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands?page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Returns only the authenticated client's errands."
+    },
+
+    "list_errands_by_status": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands?status=posted&page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Filter by status: draft, posted, bidding, assigned, in_progress, delivered, completed, cancelled, disputed, expired"
+    },
+
+    "get_errand_by_id": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Replace <errand_id> with a UUID from create or list responses."
+    },
+
+    "update_errand": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Pick up groceries from Carrefour Karen (updated)",
+        "budgetMin": 400,
+        "budgetMax": 700
+      },
+      "expected_status": 200,
+      "note": "Only allowed before the errand is assigned. All fields optional."
+    },
+
+    "add_stop_to_errand": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/stops",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "stopType": "stop",
+        "addressLabel": "Extra stop - Naivas Westgate",
+        "addressText": "Naivas Supermarket, Westgate Mall, Westlands, Nairobi",
+        "lat": -1.2575,
+        "lng": 36.7999,
+        "instructions": "Also pick up 1 litre of Brookside milk from Naivas on the way."
+      },
+      "expected_status": 201
+    },
+
+    "cancel_errand": {
+      "method": "DELETE",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 204,
+      "note": "Only works if the errand has not been assigned yet. Returns 409 ERRAND_NOT_CANCELLABLE if runner is already assigned."
+    }
+  },
+
+  "runner_feed_and_offers": {
+    "browse_feed_no_location": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/feed",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "page": 1,
+        "limit": 20
+      },
+      "expected_status": 200,
+      "note": "Returns all available errands. KYC must be approved to access this endpoint."
+    },
+
+    "browse_feed_with_location": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/feed",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "lat": -1.2741,
+        "lng": 36.8119,
+        "radiusKm": 10,
+        "page": 1,
+        "limit": 20
+      },
+      "expected_status": 200,
+      "note": "Coordinates are Westlands. Returns errands within 10km using PostGIS ST_DWithin."
+    },
+
+    "browse_feed_with_category": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/feed",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "lat": -1.2741,
+        "lng": 36.8119,
+        "radiusKm": 15,
+        "category": "delivery",
+        "page": 1,
+        "limit": 20
+      },
+      "expected_status": 200
+    },
+
+    "place_bid": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/offers",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "amount": 450,
+        "etaMinutes": 25,
+        "message": "I'm in Westlands right now, can be there in 20 minutes. I have a motorbike."
+      },
+      "expected_status": 201,
+      "note": "Replace <errand_id> with an errand that has allowBids: true and status posted or bidding."
+    },
+
+    "place_bid_minimal": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/offers",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "amount": 300
+      },
+      "expected_status": 201,
+      "note": "Only amount is required."
+    },
+
+    "list_offers_on_errand": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/offers",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Client sees all bids on their errand, with runner name and rating."
+    },
+
+    "accept_offer": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/offers/<offer_id>/accept",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Atomically accepts this offer and rejects all others. Errand status moves to assigned. Uses SELECT FOR UPDATE to prevent race conditions."
+    }
+  },
+
+  "errand_status_lifecycle": {
+    "runner_start_errand": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "status": "in_progress",
+        "notes": "On my way to the pickup location now."
+      },
+      "expected_status": 204,
+      "note": "Advances from assigned → in_progress. Runner must be the assigned runner."
+    },
+
+    "runner_mark_delivered": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "status": "delivered",
+        "notes": "At the dropoff location. Waiting for client to generate delivery code."
+      },
+      "expected_status": 204,
+      "note": "Advances from in_progress → delivered. Client must now generate OTP to confirm."
+    }
+  },
+
+  "delivery_otp": {
+    "generate_delivery_otp": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/delivery-otp",
+      "headers": {
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "expected_response_shape": {
+        "success": true,
+        "data": {
+          "otp": "482910",
+          "expiresAt": "2025-08-01T14:25:00Z"
+        }
+      },
+      "note": "Errand must be in delivered status. Client shares the 6-digit code verbally with the runner. Valid for 10 minutes. Raw OTP is NEVER stored — only SHA-256 hash."
+    },
+
+    "verify_delivery_otp": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/verify-delivery",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "otp": "482910"
+      },
+      "expected_status": 200,
+      "note": "Runner enters the code client gave them. On success: errand → completed. Max 3 attempts before OTP locks. Both parties receive push notifications."
+    },
+
+    "verify_delivery_wrong_otp": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/verify-delivery",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "otp": "000000"
+      },
+      "expected_status": 400,
+      "note": "Tests the wrong-code path. Should return OTP_INVALID error."
+    }
+  },
+
+  "chat": {
+    "get_conversation": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/chat",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Returns the conversation and all messages for this errand. Works for both client and runner."
+    },
+
+    "send_text_message": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/chat/messages",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": {
+        "messageType": "text",
+        "content": "Hi! I'm about 10 minutes away from the pickup point. Is anyone available to hand over the items?"
+      },
+      "expected_status": 201
+    },
+
+    "send_image_message": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/chat/messages",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": {
+        "messageType": "image",
+        "attachmentUrl": "https://your-cloudinary.com/uploads/chat/receipt_photo.jpg"
+      },
+      "expected_status": 201,
+      "note": "Upload image to Cloudinary first, then send the URL here."
+    }
+  },
+
+  "reviews": {
+    "create_review_client_rates_runner": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/reviews",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "rating": 5,
+        "comment": "Brian was incredibly fast and professional. Picked up my groceries exactly as listed and arrived on time. Will definitely use again!"
+      },
+      "expected_status": 201,
+      "note": "Only allowed after errand is completed. Client rates runner."
+    },
+
+    "create_review_runner_rates_client": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/reviews",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "rating": 4,
+        "comment": "Clear instructions and prompt payment. Would accept errands from this client again."
+      },
+      "expected_status": 201,
+      "note": "Runner rates client. Both sides of the rating are on the same endpoint — the server figures out who is reviewing whom."
+    },
+
+    "list_reviews": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/reviews",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    }
+  },
+
+  "disputes": {
+    "open_dispute_client": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/disputes",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "reason": "Runner picked up the wrong items and delivered them late. I ordered 2kg unga but received 1kg, and the delivery was 45 minutes past the agreed time. The receipt shows he bought cheaper substitutes and kept the difference."
+      },
+      "expected_status": 201,
+      "note": "Errand must be in delivered or in_progress status. Opens dispute and flips errand status to disputed atomically."
+    },
+
+    "open_dispute_runner": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/disputes",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "reason": "Client is refusing to generate the delivery OTP despite me completing the full errand as instructed. I have photos of all completed stops. The client is not responding to messages."
+      },
+      "expected_status": 201
+    }
+  },
+
+  "notifications": {
+    "list_notifications": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/notifications?page=1&limit=30",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "mark_notification_read": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/notifications/<notification_id>/read",
+      "headers": {
+        "Authorization": "Bearer <accessToken>"
+      },
+      "body": null,
+      "expected_status": 204
+    }
+  },
+
+  "admin": {
+    "note": "All admin routes require a token from an account with role=admin. In development, manually update a user row: UPDATE users SET role='admin' WHERE phone='+254712345678';",
+
+    "list_users": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/users?page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "list_users_filtered": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/users?status=suspended&page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200,
+      "note": "Filter by status: pending, active, suspended, deleted"
+    },
+
+    "suspend_user": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/users/<user_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "status": "suspended",
+        "reason": "Multiple reports of fraudulent behaviour — picking up items without delivering."
+      },
+      "expected_status": 204
+    },
+
+    "activate_user": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/users/<user_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "status": "active",
+        "reason": "Suspension lifted after review."
+      },
+      "expected_status": 204
+    },
+
+    "delete_user": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/users/<user_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "status": "deleted",
+        "reason": "User requested account deletion."
+      },
+      "expected_status": 204
+    },
+
+    "list_pending_kyc": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/runner-kyc?page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "approve_kyc": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/runner-kyc/<doc_id>",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "decision": "approved"
+      },
+      "expected_status": 204,
+      "note": "Replace <doc_id> with the documentId from list_pending_kyc. Sets runner's KYC status to approved — they can now accept errands."
+    },
+
+    "reject_kyc": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/runner-kyc/<doc_id>",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "decision": "rejected",
+        "notes": "Selfie does not clearly match the ID photo. Please retake the selfie in good lighting, facing forward."
+      },
+      "expected_status": 204
+    },
+
+    "list_all_errands": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/errands?page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "list_errands_by_status": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/errands?status=disputed&page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "list_all_disputes": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/disputes?page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "list_open_disputes": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/admin/disputes?status=open&page=1&limit=20",
+      "headers": {
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": null,
+      "expected_status": 200
+    },
+
+    "resolve_dispute_refund_client": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/disputes/<dispute_id>/resolve",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "resolution": "refund_client",
+        "resolutionNotes": "After reviewing the chat history and receipt photos, the runner purchased incorrect items. Full refund issued to client."
+      },
+      "expected_status": 204
+    },
+
+    "resolve_dispute_pay_runner": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/disputes/<dispute_id>/resolve",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "resolution": "pay_runner",
+        "resolutionNotes": "Runner completed the errand correctly. Client's complaint was not substantiated by evidence provided."
+      },
+      "expected_status": 204
+    },
+
+    "resolve_dispute_split": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/disputes/<dispute_id>/resolve",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "resolution": "split",
+        "resolutionNotes": "Partial delivery confirmed. Runner completed 2 of 3 stops. Payment split proportionally.",
+        "amountClient": 150,
+        "amountRunner": 350
+      },
+      "expected_status": 204
+    },
+
+    "resolve_dispute_no_action": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/admin/disputes/<dispute_id>/resolve",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <admin_accessToken>"
+      },
+      "body": {
+        "resolution": "no_action",
+        "resolutionNotes": "Both parties reached an agreement outside the platform. No further action required."
+      },
+      "expected_status": 204
+    }
+  },
+
+  "error_scenarios": {
+    "note": "These requests are designed to trigger specific error responses for testing your error handling.",
+
+    "invalid_otp": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/verify-otp?role=client",
+      "headers": { "Content-Type": "application/json" },
+      "body": { "phone": "+254712345678", "otp": "000000" },
+      "expected_status": 400,
+      "expected_error_code": "OTP_INVALID"
+    },
+
+    "expired_otp": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/auth/verify-otp?role=client",
+      "headers": { "Content-Type": "application/json" },
+      "body": { "phone": "+254712345678", "otp": "123456" },
+      "expected_status": 400,
+      "expected_error_code": "OTP_EXPIRED",
+      "note": "Wait 10+ minutes after send-otp before attempting this."
+    },
+
+    "missing_auth_header": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/profile",
+      "headers": {},
+      "body": null,
+      "expected_status": 401,
+      "expected_error_code": "UNAUTHORIZED"
+    },
+
+    "wrong_role_for_route": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "title": "Test errand",
+        "category": "groceries",
+        "currency": "KES",
+        "allowBids": true,
+        "budgetMin": 100,
+        "budgetMax": 300,
+        "stops": [{ "stopType": "pickup", "addressText": "Test location" }]
+      },
+      "expected_status": 403,
+      "expected_error_code": "FORBIDDEN",
+      "note": "Runners cannot POST errands — only clients can."
+    },
+
+    "errand_not_found": {
+      "method": "GET",
+      "url": "http://localhost:8080/api/v1/errands/00000000-0000-0000-0000-000000000000",
+      "headers": { "Authorization": "Bearer <accessToken>" },
+      "body": null,
+      "expected_status": 404,
+      "expected_error_code": "ERRAND_NOT_FOUND"
+    },
+
+    "invalid_fsm_transition": {
+      "method": "PATCH",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/status",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": {
+        "status": "completed"
+      },
+      "expected_status": 409,
+      "expected_error_code": "INVALID_TRANSITION",
+      "note": "Runner cannot jump to completed directly — must go through delivered → OTP verify."
+    },
+
+    "double_bid": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/runner/errands/<errand_id>/offers",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <runner_accessToken>"
+      },
+      "body": { "amount": 300 },
+      "expected_status": 409,
+      "expected_error_code": "ALREADY_BID",
+      "note": "Submit a bid on the same errand twice with the same runner token."
+    },
+
+    "cancel_assigned_errand": {
+      "method": "DELETE",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>",
+      "headers": { "Authorization": "Bearer <client_accessToken>" },
+      "body": null,
+      "expected_status": 409,
+      "expected_error_code": "ERRAND_NOT_CANCELLABLE",
+      "note": "Try to cancel an errand that already has an assigned runner."
+    },
+
+    "review_before_completion": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/reviews",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": { "rating": 5, "comment": "Great job" },
+      "expected_status": 409,
+      "expected_error_code": "ERRAND_NOT_COMPLETED",
+      "note": "Try to leave a review on an errand that hasn't been completed yet."
+    },
+
+    "otp_on_non_delivered_errand": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands/<errand_id>/delivery-otp",
+      "headers": { "Authorization": "Bearer <client_accessToken>" },
+      "body": null,
+      "expected_status": 409,
+      "expected_error_code": "NOT_DELIVERED",
+      "note": "Try to generate a delivery OTP before the runner marks it as delivered."
+    },
+
+    "validation_error": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/v1/errands",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer <client_accessToken>"
+      },
+      "body": {
+        "title": "Hi",
+        "category": "invalid_category"
+      },
+      "expected_status": 422,
+      "expected_error_code": "VALIDATION_ERROR",
+      "note": "Title too short (< 5 chars), invalid category, missing stops."
+    }
+  },
+
+  "testing_order": {
+    "description": "Recommended order to run a full end-to-end test flow",
+    "steps": [
+      "1.  auth.send_otp_client             → sends OTP to client phone",
+      "2.  auth.verify_otp_client           → get client accessToken + refreshToken",
+      "3.  auth.send_otp_runner             → sends OTP to runner phone",
+      "4.  auth.verify_otp_runner           → get runner accessToken",
+      "5.  profile.update_profile           → set client name",
+      "6.  profile.update_location          → set client GPS",
+      "7.  runner_setup.submit_kyc          → runner uploads docs",
+      "8.  admin.list_pending_kyc           → admin sees pending KYC (need admin token first)",
+      "9.  admin.approve_kyc               → admin approves runner",
+      "10. runner_setup.set_availability_online → runner goes online",
+      "11. runner_setup.add_service_area_custom → runner sets coverage zone",
+      "12. errands.create_errand_groceries  → client posts errand",
+      "13. runner_feed_and_offers.browse_feed_with_location → runner sees errand in feed",
+      "14. runner_feed_and_offers.place_bid → runner bids",
+      "15. runner_feed_and_offers.list_offers_on_errand → client views bids",
+      "16. runner_feed_and_offers.accept_offer → client accepts runner",
+      "17. errand_status_lifecycle.runner_start_errand → runner starts",
+      "18. chat.send_text_message           → coordinate via chat",
+      "19. errand_status_lifecycle.runner_mark_delivered → runner at dropoff",
+      "20. delivery_otp.generate_delivery_otp → client generates code",
+      "21. delivery_otp.verify_delivery_otp → runner enters code → errand completed",
+      "22. reviews.create_review_client_rates_runner → client rates runner",
+      "23. reviews.create_review_runner_rates_client → runner rates client",
+      "24. auth.refresh_token               → rotate tokens",
+      "25. auth.logout                      → end session"
+    ]
+  }
+}

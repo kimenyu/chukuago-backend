@@ -1,22 +1,54 @@
+BINARY      = chukuago-api
+MAIN        = ./cmd/server
+MIGRATE_URL = $(DATABASE_URL)
+
+.PHONY: build run test lint migrate-up migrate-down migrate-create seed tidy
+
 build:
-	@go build -o bin/chukuagobackend cmd/main.go
+	go build -ldflags="-s -w" -o bin/$(BINARY) $(MAIN)
 
 run:
-	@./bin/chukuagobackend
+	go run $(MAIN)/main.go
 
-dev:
-	@go run cmd/main.go
+test:
+	go test ./... -race -cover
 
-# Run migrations against Neon
-migrate:
-	@psql $(postgresql://neondb_owner:npg_zI8rfp6YmclE@ep-billowing-darkness-anea1o98-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require) -f cmd/migrate/migrations/001_init_schema.sql
+lint:
+	golangci-lint run ./...
 
+tidy:
+	go mod tidy
+
+# ── Database migrations ──────────────────────────────────────────────────────
 
 migrate-up:
-	@migrate -path cmd/migrate/migrations -database "$(postgresql://neondb_owner:npg_zI8rfp6YmclE@ep-billowing-darkness-anea1o98-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require)" up
+	migrate -path ./migrations -database "$(DATABASE_URL)" up
 
 migrate-down:
-	@migrate -path cmd/migrate/migrations -database "$(postgresql://neondb_owner:npg_zI8rfp6YmclE@ep-billowing-darkness-anea1o98-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require)" down
+	migrate -path ./migrations -database "$(DATABASE_URL)" down 1
 
-migrate-force:
-	@migrate -path cmd/migrate/migrations -database "$(postgresql://neondb_owner:npg_zI8rfp6YmclE@ep-billowing-darkness-anea1o98-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require)" force 1
+migrate-down-all:
+	migrate -path ./migrations -database "$(DATABASE_URL)" down
+
+migrate-create:
+	@read -p "Migration name: " name; \
+	migrate create -ext sql -dir ./migrations -seq $$name
+
+migrate-status:
+	migrate -path ./migrations -database "$(DATABASE_URL)" version
+
+# ── Docker helpers ───────────────────────────────────────────────────────────
+
+docker-up:
+	docker compose up -d postgres redis
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+# ── Code generation ──────────────────────────────────────────────────────────
+
+generate:
+	go generate ./...
