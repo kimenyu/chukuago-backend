@@ -3,10 +3,12 @@ package runners
 import (
 	"context"
 	"errors"
+	"mime/multipart"
 	"net/http"
 
-	pkgtypes "github.com/chukuago/api/pkg/types"
 	"github.com/chukuago/api/pkg/response"
+	"github.com/chukuago/api/pkg/storage"
+	pkgtypes "github.com/chukuago/api/pkg/types"
 	"github.com/chukuago/api/pkg/validator"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -100,12 +102,13 @@ func (s *Service) RemoveServiceArea(ctx context.Context, areaID uuid.UUID) error
 // ---- Handler ---------------------------------------------------------------
 
 type Handler struct {
-	svc *Service
-	log *zap.Logger
+	svc        *Service
+	cloudinary *storage.CloudinaryClient
+	log        *zap.Logger
 }
 
-func NewHandler(svc *Service, log *zap.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+func NewHandler(svc *Service, cloudinary *storage.CloudinaryClient, log *zap.Logger) *Handler {
+	return &Handler{svc: svc, cloudinary: cloudinary, log: log}
 }
 
 // SubmitKYC godoc
@@ -201,4 +204,73 @@ func (h *Handler) RemoveServiceArea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// UploadKYC godoc
+// POST /api/v1/runner/kyc/upload
+// Content-Type: multipart/form-data
+// Fields: id_front (file), id_back (file), selfie (file)
+func (h *Handler) UploadKYC(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(30 << 20); err != nil { // 30 MB limit
+		response.BadRequest(w, "INVALID_FORM", "Could not parse multipart form")
+		return
+	}
+
+	frontFH, err := getFileHeader(r, "id_front")
+	if err != nil {
+		response.BadRequest(w, "MISSING_FIELD", "id_front is required")
+		return
+	}
+	backFH, err := getFileHeader(r, "id_back")
+	if err != nil {
+		response.BadRequest(w, "MISSING_FIELD", "id_back is required")
+		return
+	}
+	selfieFH, err := getFileHeader(r, "selfie")
+	if err != nil {
+		response.BadRequest(w, "MISSING_FIELD", "selfie is required")
+		return
+	}
+
+	frontRes, err := h.cloudinary.Upload(r.Context(), "kyc", frontFH)
+	if err != nil {
+		h.log.Error("upload id_front failed", zap.Error(err))
+		response.InternalError(w)
+		return
+	}
+	backRes, err := h.cloudinary.Upload(r.Context(), "kyc", backFH)
+	if err != nil {
+		h.log.Error("upload id_back failed", zap.Error(err))
+		response.InternalError(w)
+		return
+	}
+	selfieRes, err := h.cloudinary.Upload(r.Context(), "kyc", selfieFH)
+	if err != nil {
+		h.log.Error("upload selfie failed", zap.Error(err))
+		response.InternalError(w)
+		return
+	}
+
+	if err := h.svc.SubmitKYC(r.Context(), SubmitKYCRequest{
+		NationalIDFrontURL: frontRes.URL,
+		NationalIDBackURL:  backRes.URL,
+		SelfieURL:          selfieRes.URL,
+	}); err != nil {
+		if errors.Is(err, ErrKYCAlreadyDone) {
+			response.Conflict(w, "KYC_ALREADY_SUBMITTED", "KYC has already been submitted or approved.")
+			return
+		}
+		h.log.Error("SubmitKYC after upload failed", zap.Error(err))
+		response.InternalError(w)
+		return
+	}
+
+	response.JSON(w, http.StatusAccepted, map[string]string{
+		"message": "KYC submitted successfully. Review takes 24–48 hours.",
+	})
+}
+
+func getFileHeader(r *http.Request, field string) (*multipart.FileHeader, error) {
+	_, fh, err := r.FormFile(field)
+	return fh, err
 }

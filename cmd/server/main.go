@@ -61,7 +61,7 @@ func main() {
 	defer redis.Close()
 
 	// Cloudinary for file uploads (KYC docs, chat images).
-	_ = storage.NewCloudinaryClient(
+	cloudinaryClient := storage.NewCloudinaryClient(
 		cfg.CloudinaryCloudName,
 		cfg.CloudinaryAPIKey,
 		cfg.CloudinaryAPISecret,
@@ -103,7 +103,7 @@ func main() {
 	// Handlers
 	authHandler := auth.NewHandler(authSvc, logger)
 	userHandler := users.NewHandler(userSvc, logger)
-	runnerHandler := runners.NewHandler(runnerSvc, logger)
+	runnerHandler := runners.NewHandler(runnerSvc, cloudinaryClient, logger)
 	errandHandler := errands.NewHandler(errandSvc, logger)
 	offerHandler := offers.NewHandler(offerSvc, logger)
 	chatHandler := chat.NewHandler(chatSvc, logger)
@@ -185,6 +185,7 @@ func main() {
 			r.Route("/runner", func(r chi.Router) {
 				r.Use(requireRole("runner", "admin"))
 				r.Post("/kyc", runnerHandler.SubmitKYC)
+				r.Post("/kyc/upload", runnerHandler.UploadKYC)
 				r.Get("/kyc/status", runnerHandler.KYCStatus)
 				r.Patch("/availability", runnerHandler.SetAvailability)
 				r.Post("/service-areas", runnerHandler.AddServiceArea)
