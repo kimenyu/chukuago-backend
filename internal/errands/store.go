@@ -177,6 +177,63 @@ func (s *Store) ListForClient(ctx context.Context, clientID uuid.UUID, status *s
 	return errands, total, pgRows.Err()
 }
 
+// ListForRunner returns paginated errands assigned to (or completed by) a runner.
+func (s *Store) ListForRunner(ctx context.Context, runnerID uuid.UUID, status *string, page, limit int) ([]types.Errand, int, error) {
+    offset := (page - 1) * limit
+
+    var sql string
+    var args []interface{}
+
+    if status != nil {
+        sql = `SELECT id, client_id, title, description, category, currency,
+                allow_bids, instant_accept, budget_min, budget_max, fixed_price,
+                scheduled_at, expires_at, status, assigned_runner_id, accepted_offer_id,
+                region_id, created_at, updated_at
+               FROM errands
+               WHERE assigned_runner_id = $1 AND status = $2
+               ORDER BY updated_at DESC LIMIT $3 OFFSET $4`
+        args = []interface{}{runnerID, *status, limit, offset}
+    } else {
+        sql = `SELECT id, client_id, title, description, category, currency,
+                allow_bids, instant_accept, budget_min, budget_max, fixed_price,
+                scheduled_at, expires_at, status, assigned_runner_id, accepted_offer_id,
+                region_id, created_at, updated_at
+               FROM errands
+               WHERE assigned_runner_id = $1
+               ORDER BY updated_at DESC LIMIT $2 OFFSET $3`
+        args = []interface{}{runnerID, limit, offset}
+    }
+
+    pgRows, err := s.db.Query(ctx, sql, args...)
+    if err != nil {
+        return nil, 0, fmt.Errorf("list runner errands: %w", err)
+    }
+    defer pgRows.Close()
+
+    var errands []types.Errand
+    for pgRows.Next() {
+        var e types.Errand
+        if err := pgRows.Scan(
+            &e.ID, &e.ClientID, &e.Title, &e.Description, &e.Category, &e.Currency,
+            &e.AllowBids, &e.InstantAccept, &e.BudgetMin, &e.BudgetMax, &e.FixedPrice,
+            &e.ScheduledAt, &e.ExpiresAt, &e.Status, &e.AssignedRunnerID, &e.AcceptedOfferID,
+            &e.RegionID, &e.CreatedAt, &e.UpdatedAt,
+        ); err != nil {
+            return nil, 0, fmt.Errorf("scan runner errand: %w", err)
+        }
+        errands = append(errands, e)
+    }
+
+    var total int
+    if status != nil {
+        s.db.QueryRow(ctx, `SELECT COUNT(*) FROM errands WHERE assigned_runner_id=$1 AND status=$2`, runnerID, *status).Scan(&total)
+    } else {
+        s.db.QueryRow(ctx, `SELECT COUNT(*) FROM errands WHERE assigned_runner_id=$1`, runnerID).Scan(&total)
+    }
+
+    return errands, total, pgRows.Err()
+}
+
 // Feed returns available errands for runners, optionally filtered by radius using PostGIS.
 func (s *Store) Feed(ctx context.Context, req ErrandFeedRequest) ([]types.Errand, int, error) {
 	offset := (req.Page - 1) * req.Limit
