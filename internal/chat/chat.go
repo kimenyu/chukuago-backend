@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+// ---- DTOs ---------------------------------
 
 type SendMessageRequest struct {
 	MessageType string  `json:"messageType" validate:"required,oneof=text image"`
