@@ -194,6 +194,7 @@ func main() {
 				r.Post("/errands/feed", errandHandler.Feed)
 				r.Post("/errands/{errandId}/offers", offerHandler.PlaceBid)
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
+				r.Get("/errands", errandHandler.ListForRunner)
 			})
 
 			// Admin
