@@ -192,6 +192,7 @@ func main() {
 				r.Delete("/service-areas/{id}", runnerHandler.RemoveServiceArea)
 				r.Post("/errands/feed", errandHandler.Feed)
 				r.Post("/errands/{errandId}/offers", offerHandler.PlaceBid)
+				r.Post("/errands/{errandId}/claim", offersHandler.ClaimFixed)
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
 			})
 
