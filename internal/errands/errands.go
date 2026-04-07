@@ -80,6 +80,27 @@ func (s *Service) List(ctx context.Context, page, limit int, status *string) ([]
 	return resp, total, nil
 }
 
+func (s *Service) ListForRunner(ctx context.Context, page, limit int, status *string) ([]ErrandResponse, int, error) {
+    userID, err := pkgtypes.UserIDFromContext(ctx)
+    if err != nil {
+        return nil, 0, err
+    }
+    if page < 1 { page = 1 }
+    if limit < 1 || limit > 50 { limit = 20 }
+
+    errands, total, err := s.store.ListForRunner(ctx, userID, status, page, limit)
+    if err != nil {
+        return nil, 0, err
+    }
+
+    resp := make([]ErrandResponse, len(errands))
+    for i, e := range errands {
+        e := e
+        resp[i] = *toResponse(&e, nil)
+    }
+    return resp, total, nil
+}
+
 func (s *Service) Cancel(ctx context.Context, errandID uuid.UUID) error {
 	userID, err := pkgtypes.UserIDFromContext(ctx)
 	if err != nil {
@@ -219,6 +240,30 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSONList(w, http.StatusOK, errands, page, limit, total)
+}
+
+// ListForRunner godoc
+// GET /api/v1/runner/errands
+func (h *Handler) ListForRunner(w http.ResponseWriter, r *http.Request) {
+    q := r.URL.Query()
+    page, _ := strconv.Atoi(q.Get("page"))
+    limit, _ := strconv.Atoi(q.Get("limit"))
+    if page < 1 { page = 1 }
+    if limit < 1 { limit = 20 }
+
+    var status *string
+    if s := q.Get("status"); s != "" {
+        status = &s
+    }
+
+    errands, total, err := h.svc.ListForRunner(r.Context(), page, limit, status)
+    if err != nil {
+        h.log.Error("ListForRunner failed", zap.Error(err))
+        response.InternalError(w)
+        return
+    }
+
+    response.JSONList(w, http.StatusOK, errands, page, limit, total)
 }
 
 // Cancel godoc
