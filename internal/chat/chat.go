@@ -148,12 +148,7 @@ func (s *Store) isErrandMember(ctx context.Context, errandID, userID uuid.UUID) 
 		SELECT EXISTS (
 			SELECT 1 FROM errands
 			WHERE id = $1
-			  AND (client_id = $2 OR runner_id = $2)
-			UNION ALL
-			SELECT 1 FROM bids
-			WHERE errand_id = $1
-			  AND runner_id = $2
-			  AND status = 'accepted'
+			  AND (client_id = $2 OR assigned_runner_id = $2)
 		)
 	`, errandID, userID).Scan(&exists)
 	if err != nil {
