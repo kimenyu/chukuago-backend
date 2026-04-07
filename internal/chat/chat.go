@@ -48,13 +48,13 @@ type ConversationResponse struct {
 // ---- Errors ----------------------------------------------------------------
 
 var (
-	ErrConvNotFound = errors.New("conversation not found")
-	ErrNotInConv    = errors.New("you are not a participant in this conversation")
+	ErrConvNotFound    = errors.New("conversation not found")
+	ErrNotInConv       = errors.New("you are not a participant in this conversation")
+	ErrNotErrandMember = errors.New("you are not the client or assigned runner for this errand")
 )
 
 // ---- WebSocket Hub ---------------------------------------------------------
 
-// client represents a single connected WebSocket peer.
 type client struct {
 	conversationID uuid.UUID
 	userID         uuid.UUID
@@ -62,10 +62,9 @@ type client struct {
 	send           chan []byte
 }
 
-// Hub maintains active WebSocket connections keyed by conversation ID.
 type Hub struct {
-	mu      sync.RWMutex
-	rooms   map[uuid.UUID]map[*client]struct{} // conversationID → clients
+	mu         sync.RWMutex
+	rooms      map[uuid.UUID]map[*client]struct{}
 	register   chan *client
 	unregister chan *client
 	broadcast  chan broadcastMsg
@@ -77,7 +76,6 @@ type broadcastMsg struct {
 	sender         *client
 }
 
-// NewHub creates an idle Hub. Call Run() in a goroutine.
 func NewHub() *Hub {
 	return &Hub{
 		rooms:      make(map[uuid.UUID]map[*client]struct{}),
@@ -87,13 +85,11 @@ func NewHub() *Hub {
 	}
 }
 
-// Run starts the hub's event loop. Must be called in its own goroutine.
 func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-
 		case c := <-h.register:
 			h.mu.Lock()
 			if _, ok := h.rooms[c.conversationID]; !ok {
@@ -101,7 +97,6 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 			h.rooms[c.conversationID][c] = struct{}{}
 			h.mu.Unlock()
-
 		case c := <-h.unregister:
 			h.mu.Lock()
 			if room, ok := h.rooms[c.conversationID]; ok {
@@ -112,20 +107,17 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 			h.mu.Unlock()
 			close(c.send)
-
 		case msg := <-h.broadcast:
 			h.mu.RLock()
 			room := h.rooms[msg.conversationID]
 			h.mu.RUnlock()
-
 			for c := range room {
 				if c == msg.sender {
-					continue // don't echo back to sender
+					continue
 				}
 				select {
 				case c.send <- msg.payload:
 				default:
-					// Slow consumer — drop and disconnect.
 					h.unregister <- c
 				}
 			}
@@ -133,7 +125,6 @@ func (h *Hub) Run(ctx context.Context) {
 	}
 }
 
-// Broadcast fans a message out to all connected peers in the conversation.
 func (h *Hub) Broadcast(conversationID uuid.UUID, payload []byte, sender *client) {
 	h.broadcast <- broadcastMsg{conversationID: conversationID, payload: payload, sender: sender}
 }
@@ -146,6 +137,24 @@ type Store struct {
 
 func NewStore(db *pgxpool.Pool) *Store {
 	return &Store{db: db}
+}
+
+// isErrandMember returns true if userID is the client who posted the errand
+// OR the runner currently assigned to it. This is the correct authorization
+// check for chat access — not whether a conversation row already exists.
+func (s *Store) isErrandMember(ctx context.Context, errandID, userID uuid.UUID) (bool, error) {
+	var exists bool
+	err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM errands
+			WHERE id = $1
+			  AND (client_id = $2 OR runner_id = $2)
+		)
+	`, errandID, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("isErrandMember: %w", err)
+	}
+	return exists, nil
 }
 
 // GetOrCreateConversation returns the conversation for an errand, creating it if needed.
@@ -164,13 +173,15 @@ func (s *Store) GetOrCreateConversation(ctx context.Context, errandID uuid.UUID)
 }
 
 // GetConversationByErrand fetches the conversation and its messages.
+// Returns ErrConvNotFound if no conversation exists yet (caller should
+// return an empty conversation response, not a 404).
 func (s *Store) GetConversationByErrand(ctx context.Context, errandID uuid.UUID) (*pkgtypes.Conversation, []pkgtypes.Message, error) {
 	var conv pkgtypes.Conversation
 	err := s.db.QueryRow(ctx,
 		`SELECT id, errand_id, created_at FROM conversations WHERE errand_id = $1`,
 		errandID,
 	).Scan(&conv.ID, &conv.ErrandID, &conv.CreatedAt)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrConvNotFound
 	}
 	if err != nil {
@@ -234,8 +245,33 @@ func NewService(store *Store, log *zap.Logger) *Service {
 	return &Service{store: store, hub: hub, log: log}
 }
 
+// GetConversation returns the conversation (and messages) for an errand.
+// Authorization: caller must be the errand's client OR assigned runner.
+// If no conversation exists yet, returns an empty conversation — never a 404.
 func (s *Service) GetConversation(ctx context.Context, errandID uuid.UUID) (*ConversationResponse, error) {
+	callerID, err := pkgtypes.UserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// ── Authorization: must be client or assigned runner ─────────────────
+	ok, err := s.store.isErrandMember(ctx, errandID, callerID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrNotErrandMember
+	}
+
 	conv, msgs, err := s.store.GetConversationByErrand(ctx, errandID)
+	if errors.Is(err, ErrConvNotFound) {
+		// First visit — no conversation row yet. Return an empty shell so the
+		// client can render the empty state without hitting an error.
+		return &ConversationResponse{
+			ErrandID: errandID.String(),
+			Messages: []MessageResponse{},
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -246,19 +282,30 @@ func (s *Service) GetConversation(ctx context.Context, errandID uuid.UUID) (*Con
 		CreatedAt: conv.CreatedAt,
 		Messages:  make([]MessageResponse, len(msgs)),
 	}
-
 	for i, m := range msgs {
 		resp.Messages[i] = toMsgResponse(&m)
 	}
 	return resp, nil
 }
 
+// SendMessage saves a message and broadcasts it to connected WebSocket peers.
+// Authorization: same as GetConversation — must be errand client or runner.
 func (s *Service) SendMessage(ctx context.Context, errandID uuid.UUID, req SendMessageRequest) (*MessageResponse, error) {
 	senderID, err := pkgtypes.UserIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// ── Authorization ────────────────────────────────────────────────────
+	ok, err := s.store.isErrandMember(ctx, errandID, senderID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrNotErrandMember
+	}
+
+	// GetOrCreate so the first message auto-creates the conversation row.
 	conv, err := s.store.GetOrCreateConversation(ctx, errandID)
 	if err != nil {
 		return nil, err
@@ -269,9 +316,8 @@ func (s *Service) SendMessage(ctx context.Context, errandID uuid.UUID, req SendM
 		return nil, err
 	}
 
-	// Broadcast to any connected WebSocket peers in this conversation.
 	resp := toMsgResponse(msg)
-	// In a real implementation we'd marshal resp to JSON and call s.hub.Broadcast.
+	// TODO: marshal resp to JSON and call s.hub.Broadcast for WebSocket push.
 
 	return &resp, nil
 }
@@ -311,17 +357,17 @@ func (h *Handler) GetConversation(w http.ResponseWriter, r *http.Request) {
 
 	conv, err := h.svc.GetConversation(r.Context(), errandID)
 	if err != nil {
-		if errors.Is(err, ErrConvNotFound) {
-			// Return empty conversation rather than 404 — it will be created on first message.
-			response.JSON(w, http.StatusOK, ConversationResponse{ErrandID: errandID.String(), Messages: []MessageResponse{}})
-			return
+		switch {
+		case errors.Is(err, ErrNotErrandMember):
+			response.Forbidden(w, "FORBIDDEN", "you are not the client or runner for this errand")
+		default:
+			h.log.Error("GetConversation failed", zap.Error(err))
+			response.InternalError(w)
 		}
-		h.log.Error("GetConversation failed", zap.Error(err))
-		response.InternalError(w)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, conv)
+	response.JSON(w, http.StatusOK, map[string]any{"success": true, "data": conv})
 }
 
 // SendMessage godoc
@@ -341,10 +387,15 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg, err := h.svc.SendMessage(r.Context(), errandID, req)
 	if err != nil {
-		h.log.Error("SendMessage failed", zap.Error(err))
-		response.InternalError(w)
+		switch {
+		case errors.Is(err, ErrNotErrandMember):
+			response.Forbidden(w, "FORBIDDEN", "you are not the client or runner for this errand")
+		default:
+			h.log.Error("SendMessage failed", zap.Error(err))
+			response.InternalError(w)
+		}
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, msg)
+	response.JSON(w, http.StatusCreated, map[string]any{"success": true, "data": msg})
 }
