@@ -359,7 +359,7 @@ func (h *Handler) GetConversation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotErrandMember):
-			response.Forbidden(w, "FORBIDDEN", "you are not the client or runner for this errand")
+			response.Forbidden(w, "you are not the client or runner for this errand")
 		default:
 			h.log.Error("GetConversation failed", zap.Error(err))
 			response.InternalError(w)
@@ -389,7 +389,7 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNotErrandMember):
-			response.Forbidden(w, "FORBIDDEN", "you are not the client or runner for this errand")
+			response.Forbidden(w, "you are not the client or runner for this errand")
 		default:
 			h.log.Error("SendMessage failed", zap.Error(err))
 			response.InternalError(w)
