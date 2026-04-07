@@ -28,27 +28,29 @@ type PlaceBidRequest struct {
 
 // OfferResponse is the serialised offer returned to clients.
 type OfferResponse struct {
-	ID         string     `json:"id"`
-	ErrandID   string     `json:"errandId"`
-	RunnerID   string     `json:"runnerId"`
-	Amount     float64    `json:"amount"`
-	Currency   string     `json:"currency"`
-	ETAMinutes *int       `json:"etaMinutes,omitempty"`
-	Message    *string    `json:"message,omitempty"`
-	Status     string     `json:"status"`
-	RunnerName string     `json:"runnerName,omitempty"`
-	RatingAvg  float64    `json:"ratingAvg"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	ID         string    `json:"id"`
+	ErrandID   string    `json:"errandId"`
+	RunnerID   string    `json:"runnerId"`
+	Amount     float64   `json:"amount"`
+	Currency   string    `json:"currency"`
+	ETAMinutes *int      `json:"etaMinutes,omitempty"`
+	Message    *string   `json:"message,omitempty"`
+	Status     string    `json:"status"`
+	RunnerName string    `json:"runnerName,omitempty"`
+	RatingAvg  float64   `json:"ratingAvg"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 // ---- Errors ----------------------------------------------------------------
 
 var (
-	ErrNotFound         = errors.New("offer not found")
-	ErrAlreadyBid       = errors.New("runner has already placed a bid on this errand")
-	ErrErrandNotBidding = errors.New("errand is not accepting bids")
-	ErrErrandNotOwned   = errors.New("only the errand owner can accept an offer")
-	ErrOfferNotPending  = errors.New("offer is no longer pending")
+	ErrNotFound            = errors.New("offer not found")
+	ErrAlreadyBid          = errors.New("runner has already placed a bid on this errand")
+	ErrErrandNotBidding    = errors.New("errand is not accepting bids")
+	ErrErrandNotFixed      = errors.New("errand is not a fixed-price errand")
+	ErrErrandAlreadyClaimed = errors.New("errand has already been claimed by another runner")
+	ErrErrandNotOwned      = errors.New("only the errand owner can accept an offer")
+	ErrOfferNotPending     = errors.New("offer is no longer pending")
 )
 
 // ---- Store -----------------------------------------------------------------
@@ -77,6 +79,107 @@ func (s *Store) PlaceBid(ctx context.Context, errandID, runnerID uuid.UUID, req 
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert offer: %w", err)
+	}
+	return &offer, nil
+}
+
+// ClaimFixed atomically claims a fixed-price errand for a runner.
+//
+// It verifies that:
+//   - the errand exists and has allow_bids = false
+//   - the errand is still in posted/bidding status (not yet assigned)
+//   - the runner does not already have an offer on it
+//
+// On success it:
+//  1. Inserts an offer row at the fixed price with status = 'accepted'
+//  2. Sets errands.status = 'assigned', assigned_runner_id, accepted_offer_id
+//  3. Appends an errand_events row
+func (s *Store) ClaimFixed(ctx context.Context, db *pgxpool.Pool, errandID, runnerID uuid.UUID) (*pkgtypes.ErrandOffer, error) {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Lock the errand row to prevent concurrent claims.
+	var status pkgtypes.ErrandStatus
+	var allowBids bool
+	var fixedPrice *float64
+	var currency string
+
+	err = tx.QueryRow(ctx,
+		`SELECT status, allow_bids, fixed_price, currency FROM errands WHERE id = $1 FOR UPDATE`,
+		errandID,
+	).Scan(&status, &allowBids, &fixedPrice, &currency)
+	if err == pgx.ErrNoRows {
+		return nil, errors.New("errand not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lock errand: %w", err)
+	}
+
+	// Must be a fixed-price errand.
+	if allowBids || fixedPrice == nil {
+		return nil, ErrErrandNotFixed
+	}
+
+	// Must still be claimable.
+	if status != pkgtypes.ErrandPosted && status != pkgtypes.ErrandBidding {
+		return nil, ErrErrandAlreadyClaimed
+	}
+
+	// Prevent the same runner from double-claiming.
+	var existingCount int
+	err = tx.QueryRow(ctx,
+		`SELECT COUNT(*) FROM errand_offers WHERE errand_id = $1 AND runner_id = $2`,
+		errandID, runnerID,
+	).Scan(&existingCount)
+	if err != nil {
+		return nil, fmt.Errorf("check existing offer: %w", err)
+	}
+	if existingCount > 0 {
+		return nil, ErrAlreadyBid
+	}
+
+	// Insert offer as immediately accepted.
+	offerID := uuid.New()
+	var offer pkgtypes.ErrandOffer
+	err = tx.QueryRow(ctx,
+		`INSERT INTO errand_offers (id, errand_id, runner_id, amount, currency, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, 'accepted', NOW(), NOW())
+		 RETURNING id, errand_id, runner_id, amount, currency, eta_minutes, message, status, created_at, updated_at`,
+		offerID, errandID, runnerID, *fixedPrice, currency,
+	).Scan(
+		&offer.ID, &offer.ErrandID, &offer.RunnerID, &offer.Amount, &offer.Currency,
+		&offer.ETAMinutes, &offer.Message, &offer.Status, &offer.CreatedAt, &offer.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert claim offer: %w", err)
+	}
+
+	// Assign the runner on the errand.
+	_, err = tx.Exec(ctx,
+		`UPDATE errands
+		 SET status = 'assigned', assigned_runner_id = $2, accepted_offer_id = $3, updated_at = NOW()
+		 WHERE id = $1`,
+		errandID, runnerID, offerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("assign runner: %w", err)
+	}
+
+	// Immutable event log.
+	_, err = tx.Exec(ctx,
+		`INSERT INTO errand_events (id, errand_id, actor_user_id, event_type, occurred_at)
+		 VALUES ($1, $2, $3, 'errand_claimed', NOW())`,
+		uuid.New(), errandID, runnerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("log event: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 	return &offer, nil
 }
@@ -294,6 +397,40 @@ func (s *Service) PlaceBid(ctx context.Context, errandID uuid.UUID, req PlaceBid
 	}, nil
 }
 
+// ClaimFixed is called by a runner to instantly claim a fixed-price errand.
+func (s *Service) ClaimFixed(ctx context.Context, errandID uuid.UUID) (*OfferResponse, error) {
+	runnerID, err := pkgtypes.UserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Delegate all validation + mutation to the store (runs in a transaction).
+	offer, err := s.store.ClaimFixed(ctx, s.db, errandID, runnerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Notify client that their errand was claimed (best-effort).
+	errand, _, _ := s.errandStore.GetByID(context.Background(), errandID) //nolint:errcheck
+	if errand != nil {
+		go s.notifs.SendPush(context.Background(), errand.ClientID, //nolint:errcheck
+			"Errand claimed!",
+			"A runner has accepted your fixed-price errand.",
+			map[string]string{"errandId": errandID.String()},
+		)
+	}
+
+	return &OfferResponse{
+		ID:        offer.ID.String(),
+		ErrandID:  offer.ErrandID.String(),
+		RunnerID:  offer.RunnerID.String(),
+		Amount:    offer.Amount,
+		Currency:  offer.Currency,
+		Status:    string(offer.Status),
+		CreatedAt: offer.CreatedAt,
+	}, nil
+}
+
 // ListForErrand returns offers on a given errand for the owning client.
 func (s *Service) ListForErrand(ctx context.Context, errandID uuid.UUID) ([]OfferResponse, error) {
 	return s.store.ListForErrand(ctx, errandID)
@@ -343,6 +480,34 @@ func (h *Handler) PlaceBid(w http.ResponseWriter, r *http.Request) {
 			response.Conflict(w, "ALREADY_BID", "You already have an active bid on this errand.")
 		default:
 			h.log.Error("PlaceBid failed", zap.Error(err))
+			response.InternalError(w)
+		}
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, offer)
+}
+
+// ClaimFixed godoc
+// POST /api/v1/runner/errands/:errandId/claim
+func (h *Handler) ClaimFixed(w http.ResponseWriter, r *http.Request) {
+	errandID, err := uuid.Parse(chi.URLParam(r, "errandId"))
+	if err != nil {
+		response.BadRequest(w, "INVALID_ID", "errand ID must be a valid UUID")
+		return
+	}
+
+	offer, err := h.svc.ClaimFixed(r.Context(), errandID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrErrandNotFixed):
+			response.Conflict(w, "ERRAND_NOT_FIXED", "This errand accepts bids — use the bid endpoint instead.")
+		case errors.Is(err, ErrErrandAlreadyClaimed):
+			response.Conflict(w, "ERRAND_ALREADY_CLAIMED", "This errand has already been claimed by another runner.")
+		case errors.Is(err, ErrAlreadyBid):
+			response.Conflict(w, "ALREADY_CLAIMED", "You have already claimed this errand.")
+		default:
+			h.log.Error("ClaimFixed failed", zap.Error(err))
 			response.InternalError(w)
 		}
 		return
