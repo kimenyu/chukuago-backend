@@ -44,13 +44,13 @@ type OfferResponse struct {
 // ---- Errors ----------------------------------------------------------------
 
 var (
-	ErrNotFound            = errors.New("offer not found")
-	ErrAlreadyBid          = errors.New("runner has already placed a bid on this errand")
-	ErrErrandNotBidding    = errors.New("errand is not accepting bids")
-	ErrErrandNotFixed      = errors.New("errand is not a fixed-price errand")
+	ErrNotFound             = errors.New("offer not found")
+	ErrAlreadyBid           = errors.New("runner has already placed a bid on this errand")
+	ErrErrandNotBidding     = errors.New("errand is not accepting bids")
+	ErrErrandNotFixed       = errors.New("errand is not a fixed-price errand")
 	ErrErrandAlreadyClaimed = errors.New("errand has already been claimed by another runner")
-	ErrErrandNotOwned      = errors.New("only the errand owner can accept an offer")
-	ErrOfferNotPending     = errors.New("offer is no longer pending")
+	ErrErrandNotOwned       = errors.New("only the errand owner can accept an offer")
+	ErrOfferNotPending      = errors.New("offer is no longer pending")
 )
 
 // ---- Store -----------------------------------------------------------------
