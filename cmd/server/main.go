@@ -173,8 +173,6 @@ func main() {
 					r.Post("/offers/{offerId}/accept", offerHandler.Accept)
 					r.Post("/delivery-otp", deliveryHandler.GenerateOTP)
 					r.Post("/verify-delivery", deliveryHandler.VerifyOTP)
-					r.Get("/chat", chatHandler.GetConversation)
-					r.Post("/chat/messages", chatHandler.SendMessage)
 					r.Post("/reviews", reviewHandler.Create)
 					r.Get("/reviews", reviewHandler.List)
 					r.Post("/disputes", disputeHandler.Open)
@@ -195,6 +193,12 @@ func main() {
 				r.Post("/errands/{errandId}/offers", offerHandler.PlaceBid)
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
 				r.Get("/errands", errandHandler.ListForRunner)
+			})
+
+			r.Route("/errands/{errandId}/chat", func(r chi.Router) {
+			    r.Use(requireRole("client", "runner", "admin"))
+			    r.Get("/", chatHandler.GetConversation)
+			    r.Post("/messages", chatHandler.SendMessage)
 			})
 
 			// Admin
