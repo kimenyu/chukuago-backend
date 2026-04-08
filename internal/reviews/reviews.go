@@ -118,7 +118,7 @@ func (s *Store) ListForRunner(ctx context.Context, runnerID uuid.UUID) ([]Runner
 	}
 	defer rows.Close()
 
-	var reviews []RunnerReviewResponse
+	reviews := []RunnerReviewResponse{} 
 	for rows.Next() {
 		var r RunnerReviewResponse
 		if err := rows.Scan(&r.ID, &r.ErrandID, &r.ErrandTitle,
