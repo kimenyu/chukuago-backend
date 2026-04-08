@@ -172,8 +172,6 @@ func main() {
 					r.Get("/offers", offerHandler.ListForErrand)
 					r.Post("/offers/{offerId}/accept", offerHandler.Accept)
 					r.Post("/delivery-otp", deliveryHandler.GenerateOTP)
-					r.Post("/reviews", reviewHandler.Create)
-					r.Get("/reviews", reviewHandler.List)
 					r.Post("/disputes", disputeHandler.Open)
 				})
 			})
@@ -200,6 +198,13 @@ func main() {
 			    r.Use(requireRole("client", "runner", "admin"))
 			    r.Get("/", chatHandler.GetConversation)
 			    r.Post("/messages", chatHandler.SendMessage)
+			})
+
+			// Reviews — both clients AND runners can submit/read
+			r.Route("/errands/{errandId}/reviews", func(r chi.Router) {
+			    r.Use(requireRole("client", "runner", "admin"))
+			    r.Post("/", reviewHandler.Create)
+			    r.Get("/", reviewHandler.List)
 			})
 
 			// Admin
