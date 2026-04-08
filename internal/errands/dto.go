@@ -83,6 +83,8 @@ type ErrandResponse struct {
 	FixedPrice  *float64   `json:"fixedPrice,omitempty"`
 	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
 	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
+	ClientName       string     `json:"clientName"` 
+	RunnerName       string     `json:"runnerName"`
 	Stops       []StopDTO  `json:"stops"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
