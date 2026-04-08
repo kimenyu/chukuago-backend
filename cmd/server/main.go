@@ -209,6 +209,12 @@ func main() {
 			    r.Get("/", reviewHandler.List)
 			})
 
+			// Client reviews
+			r.Route("/client", func(r chi.Router) {
+			    r.Use(requireRole("client", "admin"))
+			    r.Get("/reviews", reviewHandler.ListForClient)
+			})
+
 			// Admin
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(requireRole("admin"))
