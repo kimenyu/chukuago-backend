@@ -192,7 +192,8 @@ func main() {
 				r.Post("/errands/{errandId}/offers", offerHandler.PlaceBid)
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
 				r.Get("/errands", errandHandler.ListForRunner)
-				r.Post("/verify-delivery", deliveryHandler.VerifyOTP)
+				r.Post("/errands/{errandId}/verify-delivery", deliveryHandler.VerifyOTP)
+
 			})
 
 			r.Route("/errands/{errandId}/chat", func(r chi.Router) {
