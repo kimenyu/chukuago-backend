@@ -438,11 +438,33 @@ func (s *Service) ListForErrand(ctx context.Context, errandID uuid.UUID) ([]Offe
 
 // Accept accepts an offer as the client.
 func (s *Service) Accept(ctx context.Context, errandID, offerID uuid.UUID) error {
-	clientID, err := pkgtypes.UserIDFromContext(ctx)
-	if err != nil {
-		return err
-	}
-	return s.store.Accept(ctx, s.db, errandID, offerID, clientID)
+    clientID, err := pkgtypes.UserIDFromContext(ctx)
+    if err != nil {
+        return err
+    }
+    
+    // You need the runner ID — fetch the offer first
+    offers, err := s.store.ListForErrand(ctx, errandID)
+    if err != nil {
+        return err
+    }
+    
+    if err := s.store.Accept(ctx, s.db, errandID, offerID, clientID); err != nil {
+        return err
+    }
+
+    for _, o := range offers {
+        if o.ID == offerID.String() {
+            runnerID, _ := uuid.Parse(o.RunnerID)
+            go s.notifs.SendPush(context.Background(), runnerID,
+                "Your offer was accepted!",
+                "The client accepted your bid. Head to the errand location.",
+                map[string]string{"errandId": errandID.String()},
+            )
+            break
+        }
+    }
+    return nil
 }
 
 // ---- Handler ---------------------------------------------------------------
