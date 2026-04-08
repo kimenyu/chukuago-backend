@@ -86,13 +86,20 @@ func (s *Store) Create(ctx context.Context, clientID uuid.UUID, req CreateErrand
 }
 
 // GetByID fetches an errand with its stops.
+// GetByID fetches an errand with its stops, including client and runner names.
 func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*types.Errand, []types.ErrandStop, error) {
 	const query = `
-		SELECT id, client_id, title, description, category, currency,
-		       allow_bids, instant_accept, budget_min, budget_max, fixed_price,
-		       scheduled_at, expires_at, status, assigned_runner_id, accepted_offer_id,
-		       region_id, created_at, updated_at
-		FROM errands WHERE id = $1
+		SELECT
+			e.id, e.client_id, e.title, e.description, e.category, e.currency,
+			e.allow_bids, e.instant_accept, e.budget_min, e.budget_max, e.fixed_price,
+			e.scheduled_at, e.expires_at, e.status, e.assigned_runner_id, e.accepted_offer_id,
+			e.region_id, e.created_at, e.updated_at,
+			COALESCE(c.name, '')  AS client_name,
+			COALESCE(ru.name, '') AS runner_name
+		FROM errands e
+		JOIN users c  ON c.id  = e.client_id
+		LEFT JOIN users ru ON ru.id = e.assigned_runner_id
+		WHERE e.id = $1
 	`
 	var e types.Errand
 	err := s.db.QueryRow(ctx, query, id).Scan(
@@ -100,6 +107,7 @@ func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*types.Errand, []typ
 		&e.AllowBids, &e.InstantAccept, &e.BudgetMin, &e.BudgetMax, &e.FixedPrice,
 		&e.ScheduledAt, &e.ExpiresAt, &e.Status, &e.AssignedRunnerID, &e.AcceptedOfferID,
 		&e.RegionID, &e.CreatedAt, &e.UpdatedAt,
+		&e.ClientName, &e.RunnerName,  // ← two new fields
 	)
 	if err == pgx.ErrNoRows {
 		return nil, nil, ErrNotFound
@@ -115,7 +123,6 @@ func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*types.Errand, []typ
 
 	return &e, stops, nil
 }
-
 // ListForClient returns paginated errands owned by the given client.
 func (s *Store) ListForClient(ctx context.Context, clientID uuid.UUID, status *string, page, limit int) ([]types.Errand, int, error) {
 	offset := (page - 1) * limit
