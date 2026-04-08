@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// ---- DTOs ---------------------------------
+// ---- DTOs ------------------------------------------------------------------
 
 type SendMessageRequest struct {
 	MessageType string  `json:"messageType" validate:"required,oneof=text image"`
@@ -151,7 +151,6 @@ func (s *Store) isErrandMember(ctx context.Context, errandID, userID uuid.UUID) 
 			  AND (client_id = $2 OR assigned_runner_id = $2)
 		)
 	`, errandID, userID).Scan(&exists)
-	fmt.Printf("DEBUG isErrandMember: errandID=%s userID=%s exists=%v err=%v\n", errandID, userID, exists, err)
 	if err != nil {
 		return false, fmt.Errorf("isErrandMember: %w", err)
 	}
