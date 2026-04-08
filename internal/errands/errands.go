@@ -376,21 +376,31 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 // toResponse maps domain types to API DTOs.
 func toResponse(e *pkgtypes.Errand, stops []pkgtypes.ErrandStop) *ErrandResponse {
+	// Convert *uuid.UUID to *string safely
+	var assignedRunnerID *string
+	if e.AssignedRunnerID != nil {
+		s := e.AssignedRunnerID.String()
+		assignedRunnerID = &s
+	}
+
 	resp := &ErrandResponse{
-		ID:          e.ID.String(),
-		ClientID:    e.ClientID.String(),
-		Title:       e.Title,
-		Description: e.Description,
-		Category:    e.Category,
-		Currency:    e.Currency,
-		Status:      string(e.Status),
-		AllowBids:   e.AllowBids,
-		BudgetMin:   e.BudgetMin,
-		BudgetMax:   e.BudgetMax,
-		FixedPrice:  e.FixedPrice,
-		ScheduledAt: e.ScheduledAt,
-		ExpiresAt:   e.ExpiresAt,
-		CreatedAt:   e.CreatedAt,
+		ID:               e.ID.String(),
+		ClientID:         e.ClientID.String(),
+		Title:            e.Title,
+		Description:      e.Description,
+		Category:         e.Category,
+		Currency:         e.Currency,
+		Status:           string(e.Status),
+		AllowBids:        e.AllowBids,
+		BudgetMin:        e.BudgetMin,
+		BudgetMax:        e.BudgetMax,
+		FixedPrice:       e.FixedPrice,
+		ScheduledAt:      e.ScheduledAt,
+		ExpiresAt:        e.ExpiresAt,
+		AssignedRunnerID: assignedRunnerID, 
+		ClientName:       e.ClientName,     
+		RunnerName:       e.RunnerName,     
+		CreatedAt:        e.CreatedAt,
 	}
 
 	resp.Stops = make([]StopDTO, len(stops))
