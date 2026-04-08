@@ -70,23 +70,24 @@ type ListErrandsRequest struct {
 
 // ErrandResponse is the full errand view returned to clients and runners.
 type ErrandResponse struct {
-	ID          string     `json:"id"`
-	ClientID    string     `json:"clientId"`
-	Title       string     `json:"title"`
-	Description *string    `json:"description,omitempty"`
-	Category    string     `json:"category"`
-	Currency    string     `json:"currency"`
-	Status      string     `json:"status"`
-	AllowBids   bool       `json:"allowBids"`
-	BudgetMin   *float64   `json:"budgetMin,omitempty"`
-	BudgetMax   *float64   `json:"budgetMax,omitempty"`
-	FixedPrice  *float64   `json:"fixedPrice,omitempty"`
-	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
-	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
-	ClientName       string     `json:"clientName"` 
+	ID               string     `json:"id"`
+	ClientID         string     `json:"clientId"`
+	Title            string     `json:"title"`
+	Description      *string    `json:"description,omitempty"`
+	Category         string     `json:"category"`
+	Currency         string     `json:"currency"`
+	Status           string     `json:"status"`
+	AllowBids        bool       `json:"allowBids"`
+	BudgetMin        *float64   `json:"budgetMin,omitempty"`
+	BudgetMax        *float64   `json:"budgetMax,omitempty"`
+	FixedPrice       *float64   `json:"fixedPrice,omitempty"`
+	ScheduledAt      *time.Time `json:"scheduledAt,omitempty"`
+	ExpiresAt        *time.Time `json:"expiresAt,omitempty"`
+	AssignedRunnerID *string    `json:"assignedRunnerId,omitempty"`
+	ClientName       string     `json:"clientName"`
 	RunnerName       string     `json:"runnerName"`
-	Stops       []StopDTO  `json:"stops"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	Stops            []StopDTO  `json:"stops"`
+	CreatedAt        time.Time  `json:"createdAt"`
 }
 
 // StopDTO is a serialisable errand stop.
