@@ -43,6 +43,18 @@ type RunnerReviewResponse struct {
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
+type ClientReviewResponse struct {
+    ID           string    `json:"id"`
+    ErrandID     string    `json:"errandId"`
+    ErrandTitle  string    `json:"errandTitle"`
+    ReviewerName string    `json:"reviewerName,omitempty"`
+    Rating       int       `json:"rating"`
+    Comment      *string   `json:"comment,omitempty"`
+    CreatedAt    time.Time `json:"createdAt"`
+}
+
+
+
 
 // ---- Errors ----------------------------------------------------------------
 
@@ -100,6 +112,35 @@ func (s *Store) Create(ctx context.Context, errandID, reviewerID, revieweeID uui
 	}
 
 	return &review, tx.Commit(ctx)
+}
+
+// Store method
+func (s *Store) ListForClient(ctx context.Context, clientID uuid.UUID) ([]ClientReviewResponse, error) {
+    const query = `
+        SELECT r.id, r.errand_id, e.title, COALESCE(u.name, ''),
+               r.rating, r.comment, r.created_at
+        FROM   reviews r
+        JOIN   errands e ON e.id = r.errand_id
+        JOIN   users   u ON u.id = r.reviewer_id
+        WHERE  r.reviewee_id = $1
+        ORDER  BY r.created_at DESC
+    `
+    rows, err := s.db.Query(ctx, query, clientID)
+    if err != nil {
+        return nil, fmt.Errorf("list client reviews: %w", err)
+    }
+    defer rows.Close()
+
+    reviews := []ClientReviewResponse{}
+    for rows.Next() {
+        var r ClientReviewResponse
+        if err := rows.Scan(&r.ID, &r.ErrandID, &r.ErrandTitle,
+            &r.ReviewerName, &r.Rating, &r.Comment, &r.CreatedAt); err != nil {
+            return nil, fmt.Errorf("scan client review: %w", err)
+        }
+        reviews = append(reviews, r)
+    }
+    return reviews, rows.Err()
 }
 
 func (s *Store) ListForRunner(ctx context.Context, runnerID uuid.UUID) ([]RunnerReviewResponse, error) {
@@ -250,6 +291,17 @@ func (s *Service) ListForRunner(ctx context.Context) ([]RunnerReviewResponse, er
 	return s.store.ListForRunner(ctx, runnerID)
 }
 
+// Service method
+func (s *Service) ListForClient(ctx context.Context) ([]ClientReviewResponse, error) {
+    clientID, err := pkgtypes.UserIDFromContext(ctx)
+    if err != nil {
+        return nil, err
+    }
+    return s.store.ListForClient(ctx, clientID)
+}
+
+
+
 func (s *Service) List(ctx context.Context, errandID uuid.UUID) ([]ReviewResponse, error) {
 	return s.store.List(ctx, errandID)
 }
@@ -327,6 +379,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, reviews)
+}
+
+// Handler method
+// GET /api/v1/client/reviews
+func (h *Handler) ListForClient(w http.ResponseWriter, r *http.Request) {
+    reviews, err := h.svc.ListForClient(r.Context())
+    if err != nil {
+        h.log.Error("ListForClient failed", zap.Error(err))
+        response.InternalError(w)
+        return
+    }
+    response.JSON(w, http.StatusOK, reviews)
 }
 
 // Ensure pgx is used (scan helper).
