@@ -215,6 +215,9 @@ type Errand struct {
 	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
 	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
 
+	ClientName string  `json:"clientName"`
+	RunnerName string  `json:"runnerName"`
+	
 	Status           ErrandStatus `json:"status"`
 	AssignedRunnerID *uuid.UUID   `json:"assignedRunnerId,omitempty"`
 	AcceptedOfferID  *uuid.UUID   `json:"acceptedOfferId,omitempty"`
