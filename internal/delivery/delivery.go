@@ -227,9 +227,26 @@ func (s *Service) VerifyOTP(ctx context.Context, errandID uuid.UUID, req VerifyO
 		return err
 	}
 
+	s.log.Info("VerifyOTP debug",
+		zap.String("runnerID_from_ctx", runnerID.String()),
+		zap.String("errandID", errandID.String()),
+	)
+
 	errand, _, err := s.errandStore.GetByID(ctx, errandID)
 	if err != nil {
 		return err
+	}
+
+	if errand.AssignedRunnerID != nil {
+		s.log.Info("VerifyOTP errand",
+			zap.String("assigned_runner_id", errand.AssignedRunnerID.String()),
+			zap.Bool("match", *errand.AssignedRunnerID == runnerID),
+		)
+	} else {
+		s.log.Info("VerifyOTP errand",
+			zap.String("assigned_runner_id", "nil"),
+			zap.Bool("match", false),
+		)
 	}
 
 	// Verify the calling runner is the assigned runner.
