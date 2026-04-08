@@ -65,9 +65,8 @@ func (s *Store) UpsertOTP(ctx context.Context, errandID uuid.UUID, otpHash strin
 	_, err := s.db.Exec(ctx,
 		`INSERT INTO delivery_proofs
 		    (id, errand_id, proof_type, otp_hash, attempts, verified, expires_at, created_at)
-		 VALUES ($1,$2,'otp',$3,0,false,$4,NOW())
-		 ON CONFLICT (errand_id, proof_type)
-		 WHERE verified = false
+		 VALUES ($1, $2, 'otp', $3, 0, false, $4, NOW())
+		 ON CONFLICT (errand_id, proof_type) WHERE verified = false
 		 DO UPDATE SET
 		     otp_hash   = EXCLUDED.otp_hash,
 		     attempts   = 0,
