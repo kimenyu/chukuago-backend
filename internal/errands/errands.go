@@ -21,14 +21,20 @@ type NotificationSender interface {
 	SendPush(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string) error
 }
 
+type LocationNotifier interface {
+	NotifyNearbyRunners(ctx context.Context, errandID uuid.UUID, title string)
+}
+
 type Service struct {
 	store  *Store
 	notifs NotificationSender
 	log    *zap.Logger
+	location LocationNotifier
+
 }
 
-func NewService(store *Store, notifStore interface{}, notifs NotificationSender, log *zap.Logger) *Service {
-	return &Service{store: store, notifs: notifs, log: log}
+func NewService(store *Store, notifStore interface{}, notifs NotificationSender, location LocationNotifier, log *zap.Logger) *Service {
+	return &Service{store: store, notifs: notifs, location: location, log: log}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateErrandRequest) (*ErrandResponse, error) {
@@ -40,6 +46,14 @@ func (s *Service) Create(ctx context.Context, req CreateErrandRequest) (*ErrandR
 	errand, err := s.store.Create(ctx, userID, req)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.location != nil {
+		go s.location.NotifyNearbyRunners(
+			context.Background(),
+			errand.ID,
+			errand.Title,
+		)
 	}
 
 	_, stops, _ := s.store.GetByID(ctx, errand.ID)
@@ -81,24 +95,28 @@ func (s *Service) List(ctx context.Context, page, limit int, status *string) ([]
 }
 
 func (s *Service) ListForRunner(ctx context.Context, page, limit int, status *string) ([]ErrandResponse, int, error) {
-    userID, err := pkgtypes.UserIDFromContext(ctx)
-    if err != nil {
-        return nil, 0, err
-    }
-    if page < 1 { page = 1 }
-    if limit < 1 || limit > 50 { limit = 20 }
+	userID, err := pkgtypes.UserIDFromContext(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 50 {
+		limit = 20
+	}
 
-    errands, total, err := s.store.ListForRunner(ctx, userID, status, page, limit)
-    if err != nil {
-        return nil, 0, err
-    }
+	errands, total, err := s.store.ListForRunner(ctx, userID, status, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
 
-    resp := make([]ErrandResponse, len(errands))
-    for i, e := range errands {
-        e := e
-        resp[i] = *toResponse(&e, nil)
-    }
-    return resp, total, nil
+	resp := make([]ErrandResponse, len(errands))
+	for i, e := range errands {
+		e := e
+		resp[i] = *toResponse(&e, nil)
+	}
+	return resp, total, nil
 }
 
 func (s *Service) Cancel(ctx context.Context, errandID uuid.UUID) error {
@@ -245,25 +263,29 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // ListForRunner godoc
 // GET /api/v1/runner/errands
 func (h *Handler) ListForRunner(w http.ResponseWriter, r *http.Request) {
-    q := r.URL.Query()
-    page, _ := strconv.Atoi(q.Get("page"))
-    limit, _ := strconv.Atoi(q.Get("limit"))
-    if page < 1 { page = 1 }
-    if limit < 1 { limit = 20 }
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
 
-    var status *string
-    if s := q.Get("status"); s != "" {
-        status = &s
-    }
+	var status *string
+	if s := q.Get("status"); s != "" {
+		status = &s
+	}
 
-    errands, total, err := h.svc.ListForRunner(r.Context(), page, limit, status)
-    if err != nil {
-        h.log.Error("ListForRunner failed", zap.Error(err))
-        response.InternalError(w)
-        return
-    }
+	errands, total, err := h.svc.ListForRunner(r.Context(), page, limit, status)
+	if err != nil {
+		h.log.Error("ListForRunner failed", zap.Error(err))
+		response.InternalError(w)
+		return
+	}
 
-    response.JSONList(w, http.StatusOK, errands, page, limit, total)
+	response.JSONList(w, http.StatusOK, errands, page, limit, total)
 }
 
 // Cancel godoc
@@ -397,9 +419,9 @@ func toResponse(e *pkgtypes.Errand, stops []pkgtypes.ErrandStop) *ErrandResponse
 		FixedPrice:       e.FixedPrice,
 		ScheduledAt:      e.ScheduledAt,
 		ExpiresAt:        e.ExpiresAt,
-		AssignedRunnerID: assignedRunnerID, 
-		ClientName:       e.ClientName,     
-		RunnerName:       e.RunnerName,     
+		AssignedRunnerID: assignedRunnerID,
+		ClientName:       e.ClientName,
+		RunnerName:       e.RunnerName,
 		CreatedAt:        e.CreatedAt,
 	}
 

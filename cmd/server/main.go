@@ -15,6 +15,7 @@ import (
 	"github.com/chukuago/api/internal/delivery"
 	"github.com/chukuago/api/internal/disputes"
 	"github.com/chukuago/api/internal/errands"
+	"github.com/chukuago/api/internal/location"
 	"github.com/chukuago/api/internal/middleware"
 	"github.com/chukuago/api/internal/notifications"
 	"github.com/chukuago/api/internal/offers"
@@ -78,6 +79,7 @@ func main() {
 	disputeStore := disputes.NewStore(db)
 	notifStore := notifications.NewStore(db)
 	adminStore := admin.NewStore(db)
+	locationStore := location.NewStore(db)
 
 	// Third-party services
 	smsProvider := auth.NewAfricasTalkingProvider(cfg.ATAPIKey, cfg.ATUsername, cfg.ATSenderID, cfg.ATSandbox)
@@ -92,7 +94,8 @@ func main() {
 	userSvc := users.NewService(userStore, logger)
 	runnerSvc := runners.NewService(runnerStore, userStore, logger)
 	notifSvc := notifications.NewService(notifStore, notifPusher, logger)
-	errandSvc := errands.NewService(errandStore, notifStore, notifPusher, logger)
+	locationService := location.NewService(locationStore, notifSvc, logger)
+	errandSvc := errands.NewService(errandStore, notifStore, notifPusher, locationService, logger)
 	offerSvc := offers.NewService(offerStore, errandStore, runnerStore, notifStore, notifPusher, db, logger)
 	chatSvc := chat.NewService(chatStore, logger)
 	deliverySvc := delivery.NewService(deliveryStore, errandStore, notifStore, notifPusher, logger)
@@ -112,6 +115,7 @@ func main() {
 	disputeHandler := disputes.NewHandler(disputeSvc, logger)
 	notifHandler := notifications.NewHandler(notifSvc, logger)
 	adminHandler := admin.NewHandler(adminSvc, logger)
+	locationHandler := location.NewHandler(locationService, logger)
 
 	// Router
 	r := chi.NewRouter()
@@ -191,28 +195,29 @@ func main() {
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
 				r.Get("/errands", errandHandler.ListForRunner)
 				r.Post("/errands/{errandId}/verify-delivery", deliveryHandler.VerifyOTP)
-				r.Get("/reviews", reviewHandler.ListForRunner) 
-
+				r.Get("/reviews", reviewHandler.ListForRunner)
 
 			})
 
 			r.Route("/errands/{errandId}/chat", func(r chi.Router) {
-			    r.Use(requireRole("client", "runner", "admin"))
-			    r.Get("/", chatHandler.GetConversation)
-			    r.Post("/messages", chatHandler.SendMessage)
+				r.Use(requireRole("client", "runner", "admin"))
+				r.Get("/", chatHandler.GetConversation)
+				r.Post("/messages", chatHandler.SendMessage)
 			})
 
 			// Reviews — both clients AND runners can submit/read
 			r.Route("/errands/{errandId}/reviews", func(r chi.Router) {
-			    r.Use(requireRole("client", "runner", "admin"))
-			    r.Post("/", reviewHandler.Create)
-			    r.Get("/", reviewHandler.List)
+				r.Use(requireRole("client", "runner", "admin"))
+				r.Post("/", reviewHandler.Create)
+				r.Get("/", reviewHandler.List)
 			})
+			r.Patch("/runner/location", locationHandler.UpdateLocation)                // runner uploads position
+			r.Get("/errands/{errandId}/nearby-runners", locationHandler.NearbyRunners) // client views map
 
 			// Client reviews
 			r.Route("/client", func(r chi.Router) {
-			    r.Use(requireRole("client", "admin"))
-			    r.Get("/reviews", reviewHandler.ListForClient)
+				r.Use(requireRole("client", "admin"))
+				r.Get("/reviews", reviewHandler.ListForClient)
 			})
 
 			// Admin
