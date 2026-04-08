@@ -191,6 +191,8 @@ func main() {
 				r.Patch("/errands/{errandId}/status", errandHandler.UpdateStatus)
 				r.Get("/errands", errandHandler.ListForRunner)
 				r.Post("/errands/{errandId}/verify-delivery", deliveryHandler.VerifyOTP)
+				r.Get("/reviews", reviewHandler.ListForRunner) 
+
 
 			})
 
