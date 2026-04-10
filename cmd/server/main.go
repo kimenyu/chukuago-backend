@@ -158,6 +158,7 @@ func main() {
 			r.Use(rateLimiter.ByUser(100, time.Minute))
 
 			r.Post("/auth/logout", authHandler.Logout)
+			r.Get("/auth/admin/me", adminAuthHandler.Me)
 
 			r.Get("/profile", userHandler.GetProfile)
 			r.Patch("/profile", userHandler.UpdateProfile)
@@ -233,7 +234,7 @@ func main() {
 				r.Get("/errands", adminHandler.ListErrands)
 				r.Get("/disputes", adminHandler.ListDisputes)
 				r.Patch("/disputes/{id}/resolve", adminHandler.ResolveDispute)
-				r.Get("/auth/admin/me", adminAuthHandler.Me)
+				
 			})
 		})
 	})
