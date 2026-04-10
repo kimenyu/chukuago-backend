@@ -91,6 +91,7 @@ func main() {
 	rateLimiter := middleware.NewRateLimiter(redis)
 
 	authSvc := auth.NewService(auth.NewStore(db), otpSvc, tokenSvc, logger)
+	adminAuthSvc := auth.NewAdminService(auth.NewStore(db), tokenSvc, logger)
 	userSvc := users.NewService(userStore, logger)
 	runnerSvc := runners.NewService(runnerStore, userStore, logger)
 	notifSvc := notifications.NewService(notifStore, notifPusher, logger)
@@ -106,6 +107,7 @@ func main() {
 	// Handlers
 	authHandler := auth.NewHandler(authSvc, logger)
 	userHandler := users.NewHandler(userSvc, logger)
+	adminAuthHandler := auth.NewAdminHandler(adminAuthSvc, tokenSvc, logger)
 	runnerHandler := runners.NewHandler(runnerSvc, cloudinaryClient, logger)
 	errandHandler := errands.NewHandler(errandSvc, logger)
 	offerHandler := offers.NewHandler(offerSvc, logger)
@@ -147,6 +149,7 @@ func main() {
 			r.Post("/auth/send-otp", authHandler.SendOTP)
 			r.Post("/auth/verify-otp", authHandler.VerifyOTP)
 			r.Post("/auth/refresh", authHandler.Refresh)
+			r.Post("/auth/admin/login", adminAuthHandler.Login)
 		})
 
 		// Authenticated — rate limited by user
@@ -230,6 +233,7 @@ func main() {
 				r.Get("/errands", adminHandler.ListErrands)
 				r.Get("/disputes", adminHandler.ListDisputes)
 				r.Patch("/disputes/{id}/resolve", adminHandler.ResolveDispute)
+				r.Get("/auth/admin/me", adminAuthHandler.Me)
 			})
 		})
 	})
