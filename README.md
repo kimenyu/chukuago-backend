@@ -86,8 +86,8 @@ store.go      Data access layer — SQL only, no business logic
 
 ```bash
 # 1. Clone and install dependencies
-git clone https://github.com/chukuago/api
-cd chukuago-api
+git clone https://github.com/kimenyu/chukuago-backend
+cd chukuago-backend
 go mod download
 
 # 2. Start Postgres (with PostGIS) and Redis
