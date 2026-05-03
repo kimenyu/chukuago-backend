@@ -9,4 +9,5 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 	ErrTokenInvalid = errors.New("token is invalid or expired")
 	ErrSessionGone  = errors.New("session has been revoked or expired")
+	ErrRoleMismatch = errors.New("phone number registered under a different role")
 )

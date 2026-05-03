@@ -45,6 +45,10 @@ func (s *Service) VerifyOTP(ctx context.Context, req VerifyOTPRequest, role stri
 	if err != nil {
 		return nil, fmt.Errorf("upsert user: %w", err)
 	}
+	
+	if string(user.Role) != role {
+        return nil, ErrRoleMismatch
+    }
 
 	return s.issuePair(ctx, user.ID, string(user.Role))
 }

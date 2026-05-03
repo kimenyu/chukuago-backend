@@ -73,6 +73,8 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "OTP_EXPIRED", "Your code has expired. Please request a new one.")
 		case errors.Is(err, ErrOTPLocked):
 			response.Error(w, http.StatusTooManyRequests, "OTP_LOCKED", "Too many attempts. Please request a new code.")
+		case errors.Is(err, ErrRoleMismatch):
+			response.Error(w, http.StatusConflict, "ROLE_MISMATCH", "This number is registered as a different account type.")
 		default:
 			h.log.Error("VerifyOTP internal error", zap.Error(err))
 			response.InternalError(w)
