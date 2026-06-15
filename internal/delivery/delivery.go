@@ -20,7 +20,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+//  DTOs 
 
 // GenerateOTPResponse is returned to the client after generating a delivery code.
 type GenerateOTPResponse struct {
@@ -33,7 +33,7 @@ type VerifyOTPRequest struct {
 	OTP string `json:"otp" validate:"required,len=6"`
 }
 
-// ---- Errors ----------------------------------------------------------------
+//  Errors 
 
 var (
 	ErrProofNotFound  = errors.New("delivery proof not found or already used")
@@ -49,7 +49,7 @@ const (
 	deliveryOTPLen  = 6
 )
 
-// ---- Store -----------------------------------------------------------------
+//  Store 
 
 type Store struct {
 	db *pgxpool.Pool
@@ -157,7 +157,7 @@ func (s *Store) MarkVerified(ctx context.Context, proofID uuid.UUID, errandID uu
 	return tx.Commit(ctx)
 }
 
-// ---- Service ---------------------------------------------------------------
+// Service 
 
 type NotificationSender interface {
 	SendPush(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string) error
@@ -311,7 +311,7 @@ func hashOTP(otp string) string {
 	return fmt.Sprintf("%x", sum)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler
 
 type Handler struct {
 	svc *Service

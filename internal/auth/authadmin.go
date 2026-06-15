@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ── Errors ───────────────────────────────────────────────────────────────────
+//  Errors 
 
 var (
 	ErrAdminNotFound    = errors.New("admin not found")
@@ -22,7 +22,7 @@ var (
 	ErrAdminSuspended   = errors.New("admin account suspended")
 )
 
-// ── DTOs ─────────────────────────────────────────────────────────────────────
+//  DTOs 
 
 // AdminLoginRequest is the payload for admin email/password sign-in.
 type AdminLoginRequest struct {
@@ -30,11 +30,8 @@ type AdminLoginRequest struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
-// ── Store methods (added to the existing Store) ───────────────────────────────
-
 // GetAdminByEmail fetches an admin user by email address.
-// The users table must have an email column (already in types.User) and the
-// password_hash column that stores the bcrypt digest.
+
 func (s *Store) GetAdminByEmail(ctx context.Context, email string) (*AdminRow, error) {
 	const q = `
 		SELECT id, email, COALESCE(name,''), role, status, password_hash, created_at, updated_at
@@ -92,7 +89,7 @@ func (s *Store) CreateAdmin(ctx context.Context, email, name, plainPassword stri
 	return &a, nil
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+//  Service
 
 // AdminService handles admin-specific authentication.
 type AdminService struct {
@@ -162,7 +159,7 @@ func (s *AdminService) Me(ctx context.Context, adminID uuid.UUID) (*AdminRow, er
 	return &a, nil
 }
 
-// ── Handler ──────────────────────────────────────────────────────────────────
+//  Handler 
 
 // AdminHandler exposes admin auth endpoints.
 type AdminHandler struct {

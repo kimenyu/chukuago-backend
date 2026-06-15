@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+// DTOs 
 
 type CreateReviewRequest struct {
 	Rating  int     `json:"rating"  validate:"required,min=1,max=5"`
@@ -56,7 +56,7 @@ type ClientReviewResponse struct {
 
 
 
-// ---- Errors ----------------------------------------------------------------
+//  Errors 
 
 var (
 	ErrNotFound        = errors.New("review not found")
@@ -65,7 +65,7 @@ var (
 	ErrNotParticipant  = errors.New("you are not a participant in this errand")
 )
 
-// ---- Store -----------------------------------------------------------------
+//  Store 
 
 type Store struct {
 	db *pgxpool.Pool
@@ -209,7 +209,7 @@ func (s *Store) List(ctx context.Context, errandID uuid.UUID) ([]ReviewResponse,
 	return reviews, rows.Err()
 }
 
-// ---- Service ---------------------------------------------------------------
+//  Service
 
 type ErrandStore interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*pkgtypes.Errand, []pkgtypes.ErrandStop, error)
@@ -306,7 +306,7 @@ func (s *Service) List(ctx context.Context, errandID uuid.UUID) ([]ReviewRespons
 	return s.store.List(ctx, errandID)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler
 
 type Handler struct {
 	svc *Service

@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- Service ---------------------------------------------------------------
+// Service 
 
 type Service struct {
 	store *Store
@@ -99,7 +99,7 @@ func (s *Service) RemoveServiceArea(ctx context.Context, areaID uuid.UUID) error
 	return s.store.RemoveServiceArea(ctx, userID, areaID)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler
 
 type Handler struct {
 	svc        *Service

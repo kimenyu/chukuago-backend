@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ── Enums ────────────────────────────────────────────────────────────────────
+// Enums 
 
 type UserRole string
 
@@ -113,7 +113,7 @@ const (
 	NotifRead   NotificationStatus = "read"
 )
 
-// ── Domain structs ───────────────────────────────────────────────────────────
+// Domain structs
 
 type User struct {
 	ID     uuid.UUID  `json:"id"`
@@ -345,7 +345,7 @@ type AuditLog struct {
 	CreatedAt  time.Time      `json:"createdAt"`
 }
 
-// ── Store interfaces (for dependency inversion in tests) ─────────────────────
+// Store interfaces (for dependency inversion in tests)
 
 // UserReader is the minimal read interface other packages depend on.
 type UserReader interface {

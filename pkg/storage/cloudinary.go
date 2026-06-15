@@ -1,9 +1,5 @@
 // Package storage handles file uploads for KYC documents and chat images.
-// For this MVP we use Cloudinary instead of AWS S3 because:
-//   - No AWS account or IAM setup required
-//   - Generous free tier (25 GB storage, 25 GB bandwidth/month)
-//   - Built-in image transformations useful for KYC thumbnail previews
-//   - Single API key pair — no bucket policies or presigned URL complexity
+
 package storage
 
 import (

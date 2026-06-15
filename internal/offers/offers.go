@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+//  DTOs
 
 // PlaceBidRequest is the payload for a runner making an offer on an errand.
 type PlaceBidRequest struct {
@@ -41,7 +41,7 @@ type OfferResponse struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
-// ---- Errors ----------------------------------------------------------------
+// Errors 
 
 var (
 	ErrNotFound             = errors.New("offer not found")

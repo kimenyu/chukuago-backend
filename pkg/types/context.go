@@ -11,7 +11,7 @@ type contextKey string
 
 const (
 	UserKey     contextKey = "userID"
-	UserRoleKey contextKey = "userRole" // ✅ add this
+	UserRoleKey contextKey = "userRole" 
 )
 
 func UserIDFromContext(ctx context.Context) (uuid.UUID, error) {

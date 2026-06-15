@@ -11,11 +11,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- Errors ----------------------------------------------------------------
+//  Errors
 
 var ErrNotFound = errors.New("user not found")
 
-// ---- Service ---------------------------------------------------------------
+// Service
 
 type Service struct {
 	store *Store
@@ -91,7 +91,7 @@ func (s *Service) UpdateLocation(ctx context.Context, req UpdateLocationRequest)
 	return s.store.UpdateLocation(ctx, userID, req.Lat, req.Lng)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler
 
 type Handler struct {
 	svc *Service

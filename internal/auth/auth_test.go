@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ── TokenService tests ────────────────────────────────────────────────────────
+//  TokenService tests
 
 func TestTokenService_RoundTrip(t *testing.T) {
 	t.Parallel()
@@ -106,7 +106,7 @@ func TestTokenService_ExpiredToken(t *testing.T) {
 	}
 }
 
-// ── OTPService tests (with mock SMS provider) ─────────────────────────────────
+// OTPService tests (with mock SMS provider)
 
 type mockSMS struct {
 	calls []struct{ phone, message string }

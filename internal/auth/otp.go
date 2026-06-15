@@ -17,8 +17,7 @@ const (
 )
 
 // SMSProvider abstracts the third-party SMS gateway.
-// Africa's Talking is the recommended provider for Kenya — competitive pricing,
-// local short codes, and M-Pesa integration in Phase 2.
+
 type SMSProvider interface {
 	SendSMS(ctx context.Context, phone, message string) error
 }

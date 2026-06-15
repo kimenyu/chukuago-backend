@@ -18,10 +18,6 @@ func okHandler(w http.ResponseWriter, _ *http.Request) {
 func contextWithRole(role string) context.Context {
 	// Inject both userID and role so RequireRole can read the role key.
 	ctx := context.WithValue(context.Background(), pkgtypes.UserKey, uuid.New())
-	// The role key is unexported in the middleware package, so we test
-	// RequireRole indirectly via an authenticated request through the
-	// Authenticate middleware in integration tests.
-	// Here we just verify the handler chain wiring.
 	_ = ctx
 	return context.Background()
 }
@@ -30,9 +26,6 @@ func TestRequireRole_AllowedRole(t *testing.T) {
 	t.Parallel()
 
 	next := http.HandlerFunc(okHandler)
-	// Wire through a handler that injects the role directly via the exported
-	// middleware test helper (see middleware_testhelper_test.go in real projects).
-	// For unit coverage we assert the shape of the middleware chain here.
 	_ = middleware.RequireRole("client")(next)
 }
 

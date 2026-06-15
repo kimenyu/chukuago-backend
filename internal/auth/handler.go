@@ -46,8 +46,7 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Role is provided at registration (send-otp step). For verify we read it
-	// from the same request body so the client sends it once.
+	// Role is provided at registration (send-otp step).
 	type verifyBody struct {
 		VerifyOTPRequest
 		Role string `json:"role" validate:"required,oneof=client runner"`
@@ -57,8 +56,7 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	var body verifyBody
 	body.VerifyOTPRequest = req
 	// Role defaults to client if not present on re-use (session-based re-login).
-	// A cleaner approach: role is embedded in the OTP record (Redis), set at send time.
-	// For MVP simplicity we accept it on verify and use "client" as the safe default.
+	
 	roleHint := r.URL.Query().Get("role")
 	if roleHint == "" {
 		roleHint = "client"

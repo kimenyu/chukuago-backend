@@ -5,7 +5,7 @@
 //	go run ./cmd/seed \
 //	  -email admin@chukuago.com \
 //	  -name  "Joseph Admin" \
-//	  -pass  "Boyfaded38487254"
+//	  -pass  "password"
 //
 // The program exits after inserting (or skipping if the email already exists).
 // Never commit real passwords — use a strong password and change it after first login.
@@ -61,7 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Admin created\n")
+	fmt.Printf(" Admin created\n")
 	fmt.Printf("  ID    : %s\n", admin.ID)
 	fmt.Printf("  Email : %s\n", admin.Email)
 	fmt.Printf("  Name  : %s\n", admin.Name)

@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+// DTOs 
 
 type UpdateUserStatusRequest struct {
 	Status string `json:"status" validate:"required,oneof=active suspended deleted"`
@@ -51,14 +51,14 @@ type KYCQueueItem struct {
 	SubmittedAt  time.Time `json:"submittedAt"`
 }
 
-// ---- Errors ----------------------------------------------------------------
+// Errors
 
 var (
 	ErrNotFound    = errors.New("resource not found")
 	ErrBadDecision = errors.New("invalid KYC decision")
 )
 
-// ---- Store -----------------------------------------------------------------
+//  Store
 
 type Store struct {
 	db *pgxpool.Pool
@@ -295,7 +295,7 @@ func (s *Store) ListErrands(ctx context.Context, statusFilter *string, page, lim
 	return errands, total, pgRows.Err()
 }
 
-// ---- Service ---------------------------------------------------------------
+// Service
 
 type RunnerStore interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*pkgtypes.RunnerProfile, error)
@@ -353,7 +353,7 @@ func (s *Service) ResolveDispute(ctx context.Context, disputeID uuid.UUID, req d
 	return store.Resolve(ctx, disputeID, adminID, req)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler
 
 type Handler struct {
 	svc *Service

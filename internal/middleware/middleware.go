@@ -48,7 +48,6 @@ type contextRoleKey string
 const roleKey contextRoleKey = "role"
 
 // RequireRole returns a middleware that enforces one of the allowed roles.
-// Usage: r.Use(middleware.RequireRole("admin")) or RequireRole("client", "admin")
 func RequireRole(roles ...string) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(roles))
 	for _, r := range roles {

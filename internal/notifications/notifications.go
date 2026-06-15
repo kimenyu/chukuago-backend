@@ -24,7 +24,7 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+//  DTOs
 
 type NotificationResponse struct {
 	ID        string     `json:"id"`
@@ -35,12 +35,7 @@ type NotificationResponse struct {
 	ReadAt    *time.Time `json:"readAt,omitempty"`
 }
 
-// ---- FCM Pusher ------------------------------------------------------------
-// Firebase Cloud Messaging is the recommended push provider for ChukuaGo because:
-//   - Free for the volumes ChukuaGo will see at MVP
-//   - Flutter firebase_messaging package has first-class support
-//   - Works on both Android (dominant in Kenya) and iOS
-//   - Simple HTTP v1 API with service account credentials
+// FCM Pusher 
 
 type fcmMessage struct {
 	Message struct {
@@ -71,9 +66,7 @@ func NewFirebasePusher(credJSON string) *FirebasePusher {
 }
 
 // SendPush dispatches a push notification to the device registered for userID.
-// In a full implementation the FCM registration token would be stored per-user
-// (e.g. updated from the app on each login). For MVP we look it up from a
-// device_tokens table (not shown, trivial to add).
+
 func (p *FirebasePusher) SendPush(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string) error {
 	// Obtain a short-lived Google OAuth2 access token using the service account.
 	conf, err := google.CredentialsFromJSON(ctx, p.creds, "https://www.googleapis.com/auth/firebase.messaging")
@@ -119,14 +112,13 @@ func (p *FirebasePusher) SendPush(ctx context.Context, userID uuid.UUID, title, 
 	return nil
 }
 
-// lookupDeviceToken is a placeholder — replace with a DB lookup against a
-// device_tokens table that the Flutter app updates on each login.
+// lookupDeviceToken is a placeholder 
 func lookupDeviceToken(_ context.Context, _ uuid.UUID) string {
 	// In production: SELECT fcm_token FROM device_tokens WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 1
-	return os.Getenv("FCM_DEV_TOKEN") // useful for local testing
+	return os.Getenv("FCM_DEV_TOKEN")
 }
 
-// ---- Store -----------------------------------------------------------------
+// Store 
 
 type Store struct {
 	db *pgxpool.Pool
@@ -191,7 +183,7 @@ func (s *Store) MarkRead(ctx context.Context, id, userID uuid.UUID) error {
 	return nil
 }
 
-// ---- Service ---------------------------------------------------------------
+//  Service
 
 type Pusher interface {
 	SendPush(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string) error
@@ -253,7 +245,7 @@ func (s *Service) MarkRead(ctx context.Context, notifID uuid.UUID) error {
 	return s.store.MarkRead(ctx, notifID, userID)
 }
 
-// ---- Handler ---------------------------------------------------------------
+// Handler 
 
 type Handler struct {
 	svc *Service

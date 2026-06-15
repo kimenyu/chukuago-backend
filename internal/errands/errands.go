@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- Service ---------------------------------------------------------------
+//  Service 
 
 // NotificationSender is the minimal interface errands needs to fire push notifications.
 type NotificationSender interface {
@@ -179,7 +179,7 @@ func (s *Service) UpdateStatus(ctx context.Context, errandID uuid.UUID, req Upda
 
 type types_ErrandStopDTO = StopDTO
 
-// ---- Handler ---------------------------------------------------------------
+// Handler 
 
 type Handler struct {
 	svc *Service

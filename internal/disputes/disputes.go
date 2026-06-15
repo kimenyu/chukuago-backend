@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+//  DTOs 
 
 type OpenDisputeRequest struct {
 	Reason string `json:"reason" validate:"required,min=20,max=2000"`
@@ -42,7 +42,7 @@ type DisputeResponse struct {
 	ResolvedAt      *time.Time `json:"resolvedAt,omitempty"`
 }
 
-// ---- Errors ----------------------------------------------------------------
+//  Errors 
 
 var (
 	ErrNotFound         = errors.New("dispute not found")
@@ -52,7 +52,7 @@ var (
 	ErrAlreadyResolved  = errors.New("dispute is already resolved")
 )
 
-// ---- Store -----------------------------------------------------------------
+// Store 
 
 type Store struct {
 	db *pgxpool.Pool
@@ -217,7 +217,7 @@ func (s *Store) ListAll(ctx context.Context, status *string, page, limit int) ([
 	return disputes, total, pgRows.Err()
 }
 
-// ---- Service ---------------------------------------------------------------
+//  Service 
 
 type ErrandStore interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*pkgtypes.Errand, []pkgtypes.ErrandStop, error)
@@ -290,7 +290,7 @@ func toDisputeResponse(d *pkgtypes.Dispute) *DisputeResponse {
 	return resp
 }
 
-// ---- Handler ---------------------------------------------------------------
+//  Handler 
 
 type Handler struct {
 	svc *Service

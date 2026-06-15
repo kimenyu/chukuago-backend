@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ── DTOs ────────────────────────────────────────────────────────────────────
+// DTOs
 
 type UpdateLocationRequest struct {
 	Lat float64 `json:"lat" validate:"required,min=-90,max=90"`
@@ -38,7 +38,7 @@ type NearbyRunner struct {
 	LastSeenAt  time.Time `json:"lastSeenAt"`
 }
 
-// ── Errors ───────────────────────────────────────────────────────────────────
+// Errors
 
 var (
 	ErrNotRunner      = errors.New("only runners can update location")
@@ -53,7 +53,7 @@ const (
 	staleThreshold  = 15 * time.Minute // runners not seen in 15min are excluded
 )
 
-// ── Store ────────────────────────────────────────────────────────────────────
+// Store
 
 type Store struct {
 	db *pgxpool.Pool
@@ -151,7 +151,7 @@ func (s *Store) PickupCoords(ctx context.Context, errandID uuid.UUID) (lat, lng 
 	return lat, lng, nil
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// Service
 
 type NotificationSender interface {
 	SendPush(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string) error
@@ -230,7 +230,7 @@ func (s *Service) NotifyNearbyRunners(ctx context.Context, errandID uuid.UUID, e
 	)
 }
 
-// ── Handler ──────────────────────────────────────────────────────────────────
+// Handler
 
 type Handler struct {
 	svc *Service

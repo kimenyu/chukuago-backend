@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// ---- DTOs ------------------------------------------------------------------
+//  DTOs 
 
 type SendMessageRequest struct {
 	MessageType string  `json:"messageType" validate:"required,oneof=text image"`
@@ -45,7 +45,7 @@ type ConversationResponse struct {
 	CreatedAt time.Time         `json:"createdAt"`
 }
 
-// ---- Errors ----------------------------------------------------------------
+//  Errors
 
 var (
 	ErrConvNotFound    = errors.New("conversation not found")
@@ -53,7 +53,7 @@ var (
 	ErrNotErrandMember = errors.New("you are not the client or assigned runner for this errand")
 )
 
-// ---- WebSocket Hub ---------------------------------------------------------
+// WebSocket Hub
 
 type client struct {
 	conversationID uuid.UUID
@@ -129,7 +129,7 @@ func (h *Hub) Broadcast(conversationID uuid.UUID, payload []byte, sender *client
 	h.broadcast <- broadcastMsg{conversationID: conversationID, payload: payload, sender: sender}
 }
 
-// ---- Store -----------------------------------------------------------------
+// Store
 
 type Store struct {
 	db *pgxpool.Pool
@@ -140,8 +140,6 @@ func NewStore(db *pgxpool.Pool) *Store {
 }
 
 // isErrandMember returns true if userID is the client who posted the errand
-// OR the runner currently assigned to it. This is the correct authorization
-// check for chat access — not whether a conversation row already exists.
 func (s *Store) isErrandMember(ctx context.Context, errandID, userID uuid.UUID) (bool, error) {
 	var exists bool
 	err := s.db.QueryRow(ctx, `
@@ -173,8 +171,6 @@ func (s *Store) GetOrCreateConversation(ctx context.Context, errandID uuid.UUID)
 }
 
 // GetConversationByErrand fetches the conversation and its messages.
-// Returns ErrConvNotFound if no conversation exists yet (caller should
-// return an empty conversation response, not a 404).
 func (s *Store) GetConversationByErrand(ctx context.Context, errandID uuid.UUID) (*pkgtypes.Conversation, []pkgtypes.Message, error) {
 	var conv pkgtypes.Conversation
 	err := s.db.QueryRow(ctx,
@@ -231,7 +227,7 @@ func (s *Store) SaveMessage(ctx context.Context, convID, senderID uuid.UUID, req
 	return &m, nil
 }
 
-// ---- Service ---------------------------------------------------------------
+//  Service
 
 type Service struct {
 	store *Store
@@ -246,15 +242,14 @@ func NewService(store *Store, log *zap.Logger) *Service {
 }
 
 // GetConversation returns the conversation (and messages) for an errand.
-// Authorization: caller must be the errand's client OR assigned runner.
-// If no conversation exists yet, returns an empty conversation — never a 404.
+
 func (s *Service) GetConversation(ctx context.Context, errandID uuid.UUID) (*ConversationResponse, error) {
 	callerID, err := pkgtypes.UserIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// ── Authorization: must be client or assigned runner ─────────────────
+	//  Authorization: must be client or assigned runner
 	ok, err := s.store.isErrandMember(ctx, errandID, callerID)
 	if err != nil {
 		return nil, err
@@ -296,7 +291,7 @@ func (s *Service) SendMessage(ctx context.Context, errandID uuid.UUID, req SendM
 		return nil, err
 	}
 
-	// ── Authorization ────────────────────────────────────────────────────
+	//  Authorization 
 	ok, err := s.store.isErrandMember(ctx, errandID, senderID)
 	if err != nil {
 		return nil, err
@@ -335,7 +330,7 @@ func toMsgResponse(m *pkgtypes.Message) MessageResponse {
 	}
 }
 
-// ---- Handler ---------------------------------------------------------------
+//  Handler 
 
 type Handler struct {
 	svc *Service

@@ -1,7 +1,7 @@
 package runners
 
 // SubmitKYCRequest carries the KYC document URLs uploaded to S3 by the mobile client.
-// The mobile app uploads directly to S3 (presigned URL) then sends us the resulting URLs.
+// The mobile app uploads directly to cloudinary for now (presigned URL) then sends us the resulting URLs. You can uncomment s3 code and use it 
 type SubmitKYCRequest struct {
 	NationalIDFrontURL string `json:"nationalIdFrontUrl" validate:"required,url"`
 	NationalIDBackURL  string `json:"nationalIdBackUrl"  validate:"required,url"`
